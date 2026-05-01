@@ -6,7 +6,7 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-terraledger = "6sdbh1c8NgDWZZcM6KkWqkKTMtHu7pHnu24xu3y2UUoe"
+terraledger = "FXfyLUSeLn8pZrUTPjN7iGqjqRBwLRiHz2XKhnoDriQM"
 
 [registry]
 url = "https://api.apr.dev"
