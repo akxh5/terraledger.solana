@@ -1,6 +1,7 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { Terraledger } from "../target/types/terraledger";
+import { SquadsMock } from "../target/types/squads_mock";
 import { expect } from "chai";
 import { PublicKey, Keypair, SystemProgram, Transaction, sendAndConfirmTransaction } from "@solana/web3.js";
 
@@ -9,6 +10,8 @@ describe("terraledger robustness", () => {
   anchor.setProvider(provider);
 
   const program = anchor.workspace.Terraledger as Program<Terraledger>;
+  const squadsMock = anchor.workspace.SquadsMock as Program<SquadsMock>;
+  
   const owner = provider.wallet;
   const payer = (provider.wallet as any).payer as Keypair;
   const registrar = anchor.web3.Keypair.generate();
@@ -29,32 +32,18 @@ describe("terraledger robustness", () => {
       await provider.connection.requestAirdrop(registrar.publicKey, 1000000000)
     );
     
-    // Create mock multisig
-    const size = 8 + 32 + 32 + 2 + 4 + (3 * 34) + 1;
-    const lamports = await provider.connection.getMinimumBalanceForRentExemption(size);
-    const tx = new Transaction().add(
-      SystemProgram.createAccount({
-        fromPubkey: owner.publicKey,
-        newAccountPubkey: multisigAccount.publicKey,
-        lamports,
-        space: size,
-        programId: SystemProgram.programId,
-      })
-    );
-    await sendAndConfirmTransaction(provider.connection, tx, [payer, multisigAccount]);
-
-    const data = Buffer.alloc(size);
-    data.writeUInt16LE(2, 72);
-    data.writeUInt32LE(3, 74);
-    
-    // Assign to Squads program
-    const assignTx = new Transaction().add(
-        SystemProgram.assign({
-            accountPubkey: multisigAccount.publicKey,
-            programId: new PublicKey("SQDS4H8Eq9XfSsk9yHWh879T39f97R9FmUWh553Z2rT"),
-        })
-    );
-    await sendAndConfirmTransaction(provider.connection, assignTx, [payer]);
+    // Initialize mock multisig via mock program
+    await squadsMock.methods
+      .initializeMultisig(2)
+      .accounts({
+        multisig: multisigAccount.publicKey,
+        createKey: owner.publicKey,
+        configAuthority: owner.publicKey,
+        payer: owner.publicKey,
+        systemProgram: SystemProgram.programId,
+      } as any)
+      .signers([multisigAccount])
+      .rpc();
   });
 
   it("Should fail to register land with empty landId", async () => {
@@ -62,12 +51,17 @@ describe("terraledger robustness", () => {
       [Buffer.from("land"), Buffer.from("")],
       program.programId
     );
+    const [multisigSigner] = PublicKey.findProgramAddressSync(
+      [Buffer.from("squad"), multisigAccount.publicKey.toBuffer(), new Uint8Array([0, 0, 0, 0]), Buffer.from("vault")],
+      new PublicKey("SQDS4ep65T869zMMBKyuUq6aD6EgTu8psMjkvj52pCf")
+    );
     try {
       await program.methods
         .registerLand("", metadataHash, [{ owner: owner.publicKey, sharesBps: 10000 }], [registrar.publicKey], 1000)
         .accounts({
           landAccount: emptyLandPda,
           multisig: multisigAccount.publicKey,
+          multisigSigner: multisigSigner,
           signer: owner.publicKey,
         } as any)
         .rpc();
@@ -77,11 +71,16 @@ describe("terraledger robustness", () => {
   });
 
   it("Should register land successfully", async () => {
+    const [multisigSigner] = PublicKey.findProgramAddressSync(
+      [Buffer.from("squad"), multisigAccount.publicKey.toBuffer(), new Uint8Array([0, 0, 0, 0]), Buffer.from("vault")],
+      new PublicKey("SQDS4ep65T869zMMBKyuUq6aD6EgTu8psMjkvj52pCf")
+    );
     await program.methods
       .registerLand(landId, metadataHash, [{ owner: owner.publicKey, sharesBps: 10000 }], [registrar.publicKey], 1000)
       .accounts({
         landAccount: landAccountPda,
         multisig: multisigAccount.publicKey,
+        multisigSigner: multisigSigner,
         signer: owner.publicKey,
       } as any)
       .rpc();

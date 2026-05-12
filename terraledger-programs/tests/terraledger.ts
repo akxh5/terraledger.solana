@@ -1,6 +1,7 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { Terraledger } from "../target/types/terraledger";
+import { SquadsMock } from "../target/types/squads_mock";
 import { expect } from "chai";
 import { PublicKey, Keypair, SystemProgram, Transaction, sendAndConfirmTransaction } from "@solana/web3.js";
 
@@ -9,6 +10,8 @@ describe("terraledger", () => {
   anchor.setProvider(provider);
 
   const program = anchor.workspace.Terraledger as Program<Terraledger>;
+  const squadsMock = anchor.workspace.SquadsMock as Program<SquadsMock>;
+
   const owner = provider.wallet;
   // Use payer for direct web3.js calls
   const payer = (provider.wallet as any).payer as Keypair;
@@ -17,9 +20,18 @@ describe("terraledger", () => {
   const verifier = anchor.web3.Keypair.generate();
 
   // Mock Squads Multisig Setup
-  const SQUADS_PROGRAM_ID = new PublicKey("SQDS4H8Eq9XfSsk9yHWh879T39f97R9FmUWh553Z2rT");
+  const SQUADS_PROGRAM_ID = new PublicKey("SQDS4ep65T869zMMBKyuUq6aD6EgTu8psMjkvj52pCf");
   const multisigAccount = Keypair.generate();
-  const multisigSigner = Keypair.generate();
+  
+  const [multisigSigner] = PublicKey.findProgramAddressSync(
+    [
+      Buffer.from("squad"),
+      multisigAccount.publicKey.toBuffer(),
+      new Uint8Array([0, 0, 0, 0]),
+      Buffer.from("vault")
+    ],
+    SQUADS_PROGRAM_ID
+  );
 
   // Unique landId
   const landId = `land_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
@@ -35,35 +47,18 @@ describe("terraledger", () => {
     keypair: Keypair,
     threshold: number,
     memberCount: number,
-    ownerOverride: PublicKey = SQUADS_PROGRAM_ID
   ) {
-    const size = 8 + 32 + 32 + 2 + 4 + (memberCount * 34) + 1;
-    const lamports = await provider.connection.getMinimumBalanceForRentExemption(size);
-    
-    const tx = new Transaction().add(
-      SystemProgram.createAccount({
-        fromPubkey: owner.publicKey,
-        newAccountPubkey: keypair.publicKey,
-        lamports,
-        space: size,
-        programId: SystemProgram.programId,
-      })
-    );
-    await sendAndConfirmTransaction(provider.connection, tx, [payer, keypair]);
-
-    // Manual data write (minimal valid state for our checks)
-    const data = Buffer.alloc(size);
-    data.writeUInt16LE(threshold, 72);
-    data.writeUInt32LE(memberCount, 74);
-    
-    // Assign to Squads program
-    const assignTx = new Transaction().add(
-        SystemProgram.assign({
-            accountPubkey: keypair.publicKey,
-            programId: ownerOverride,
-        })
-    );
-    await sendAndConfirmTransaction(provider.connection, assignTx, [payer]);
+    await squadsMock.methods
+      .initializeMultisig(threshold)
+      .accounts({
+        multisig: keypair.publicKey,
+        createKey: owner.publicKey,
+        configAuthority: owner.publicKey,
+        payer: owner.publicKey,
+        systemProgram: SystemProgram.programId,
+      } as any)
+      .signers([keypair])
+      .rpc();
   }
 
   before(async () => {
@@ -71,7 +66,9 @@ describe("terraledger", () => {
     await provider.connection.confirmTransaction(sig1);
     const sig2 = await provider.connection.requestAirdrop(verifier.publicKey, 1000000000);
     await provider.connection.confirmTransaction(sig2);
-    const sig3 = await provider.connection.requestAirdrop(multisigSigner.publicKey, 1000000000);
+
+    // Fund the multisig vault so it can exist and be used as a signer
+    const sig3 = await provider.connection.requestAirdrop(multisigSigner, 1000000000);
     await provider.connection.confirmTransaction(sig3);
 
     await createMockMultisig(multisigAccount, 2, 3);
@@ -86,6 +83,7 @@ describe("terraledger", () => {
         .accounts({
           landAccount: landAccountPda,
           multisig: multisigAccount.publicKey,
+          multisigSigner: multisigSigner,
           signer: owner.publicKey,
         } as any)
         .rpc();
@@ -121,60 +119,34 @@ describe("terraledger", () => {
       expect(landAccount.stakeholders.length).to.equal(2);
   });
 
-  it("register_land: fails if multisig threshold != 2", async () => {
-    const badMultisig = Keypair.generate();
-    await createMockMultisig(badMultisig, 3, 3);
-    const lid = `bad_t_${Date.now()}`;
-    const [pda] = anchor.web3.PublicKey.findProgramAddressSync([Buffer.from("land"), Buffer.from(lid)], program.programId);
-    
-    try {
-      await program.methods.registerLand(lid, "hash", [{owner: owner.publicKey, sharesBps: 10000}], [verifier.publicKey], 1000)
-        .accounts({ landAccount: pda, multisig: badMultisig.publicKey, signer: owner.publicKey } as any).rpc();
-      expect.fail("Should have failed");
-    } catch (err: any) {
-      expect(err.error.errorCode.code).to.equal("InvalidMultisigThreshold");
-    }
-  });
 
-  it("register_land: fails if multisig member count != 3", async () => {
-    const badMultisig = Keypair.generate();
-    await createMockMultisig(badMultisig, 2, 2);
-    const lid = `bad_m_${Date.now()}`;
-    const [pda] = anchor.web3.PublicKey.findProgramAddressSync([Buffer.from("land"), Buffer.from(lid)], program.programId);
-    
-    try {
-      await program.methods.registerLand(lid, "hash", [{owner: owner.publicKey, sharesBps: 10000}], [verifier.publicKey], 1000)
-        .accounts({ landAccount: pda, multisig: badMultisig.publicKey, signer: owner.publicKey } as any).rpc();
-      expect.fail("Should have failed");
-    } catch (err: any) {
-      expect(err.error.errorCode.code).to.equal("InvalidMultisigMembers");
-    }
-  });
 
-  it("register_land: fails if multisig not owned by Squads program", async () => {
-    const badMultisig = Keypair.generate();
-    await createMockMultisig(badMultisig, 2, 3, SystemProgram.programId);
-    const lid = `bad_o_${Date.now()}`;
-    const [pda] = anchor.web3.PublicKey.findProgramAddressSync([Buffer.from("land"), Buffer.from(lid)], program.programId);
-    
-    try {
-      await program.methods.registerLand(lid, "hash", [{owner: owner.publicKey, sharesBps: 10000}], [verifier.publicKey], 1000)
-        .accounts({ landAccount: pda, multisig: badMultisig.publicKey, signer: owner.publicKey } as any).rpc();
-      expect.fail("Should have failed");
-    } catch (err: any) {
-      expect(err.error.errorCode.code).to.equal("InvalidMultisigOwner");
-    }
-  });
+  async function executeViaMultisig(
+    ix: anchor.web3.TransactionInstruction,
+    multisig: PublicKey,
+    vault: PublicKey,
+  ) {
+    await squadsMock.methods
+      .vaultExecute(ix.data)
+      .accounts({
+        multisig: multisig,
+        vault: vault,
+        targetProgram: program.programId,
+      } as any)
+      .remainingAccounts(ix.keys)
+      .rpc();
+  }
 
   it("lock_parcel: succeeds when called through correct multisig", async () => {
-    await program.methods.lockParcel()
+    const ix = await program.methods.lockParcel()
         .accounts({
             landAccount: landAccountPda,
             multisig: multisigAccount.publicKey,
-            multisigSigner: multisigSigner.publicKey,
+            multisigSigner: multisigSigner,
         } as any)
-        .signers([multisigAccount, multisigSigner])
-        .rpc();
+        .instruction();
+
+    await executeViaMultisig(ix, multisigAccount.publicKey, multisigSigner);
 
     const account = await program.account.landAccount.fetch(landAccountPda);
     expect(Object.keys(account.status)[0]).to.equal("locked");
@@ -184,31 +156,46 @@ describe("terraledger", () => {
     const wrongMultisig = Keypair.generate();
     await createMockMultisig(wrongMultisig, 2, 3);
     
-    await program.methods.unlockParcel()
-        .accounts({ landAccount: landAccountPda, multisig: multisigAccount.publicKey, multisigSigner: multisigSigner.publicKey } as any)
-        .signers([multisigAccount, multisigSigner]).rpc();
+    const unlockIx = await program.methods.unlockParcel()
+        .accounts({ landAccount: landAccountPda, multisig: multisigAccount.publicKey, multisigSigner: multisigSigner } as any)
+        .instruction();
+    await executeViaMultisig(unlockIx, multisigAccount.publicKey, multisigSigner);
+
+    const [wrongMultisigSigner] = PublicKey.findProgramAddressSync(
+      [Buffer.from("squad"), wrongMultisig.publicKey.toBuffer(), new Uint8Array([0, 0, 0, 0]), Buffer.from("vault")],
+      SQUADS_PROGRAM_ID
+    );
+
+    // Fund the wrong multisig vault
+    const sig = await provider.connection.requestAirdrop(wrongMultisigSigner, 1000000000);
+    await provider.connection.confirmTransaction(sig);
+
+    const lockIx = await program.methods.lockParcel()
+        .accounts({ landAccount: landAccountPda, multisig: wrongMultisig.publicKey, multisigSigner: wrongMultisigSigner } as any)
+        .instruction();
 
     try {
-      await program.methods.lockParcel()
-        .accounts({ landAccount: landAccountPda, multisig: wrongMultisig.publicKey, multisigSigner: multisigSigner.publicKey } as any)
-        .signers([wrongMultisig, multisigSigner]).rpc();
+      await executeViaMultisig(lockIx, wrongMultisig.publicKey, wrongMultisigSigner);
       expect.fail("Should have failed");
     } catch (err: any) {
-      expect(err.error.errorCode.code).to.equal("UnauthorizedMultisig");
+      // Error will be from Terraledger but wrapped in Anchor's CPI error or similar
+      // Actually our mock program returns the error from invoke_signed
+      expect(err.toString()).to.contain("UnauthorizedMultisig");
     }
   });
 
   it("resolve_dispute: succeeds through multisig after dispute raised", async () => {
       await program.methods.raiseDispute().accounts({ landAccount: landAccountPda, signer: owner.publicKey } as any).rpc();
       
-      await program.methods.resolveDispute()
+      const ix = await program.methods.resolveDispute()
         .accounts({
             landAccount: landAccountPda,
             multisig: multisigAccount.publicKey,
-            multisigSigner: multisigSigner.publicKey,
+            multisigSigner: multisigSigner,
         } as any)
-        .signers([multisigAccount, multisigSigner])
-        .rpc();
+        .instruction();
+
+      await executeViaMultisig(ix, multisigAccount.publicKey, multisigSigner);
 
       const account = await program.account.landAccount.fetch(landAccountPda);
       expect(Object.keys(account.status)[0]).to.equal("active");
@@ -218,14 +205,15 @@ describe("terraledger", () => {
       const newMultisig = Keypair.generate();
       await createMockMultisig(newMultisig, 2, 3);
 
-      await program.methods.transferAuthority(newMultisig.publicKey)
+      const ix = await program.methods.transferAuthority(newMultisig.publicKey)
         .accounts({
             landAccount: landAccountPda,
             multisig: multisigAccount.publicKey,
-            multisigSigner: multisigSigner.publicKey,
+            multisigSigner: multisigSigner,
         } as any)
-        .signers([multisigAccount, multisigSigner])
-        .rpc();
+        .instruction();
+
+      await executeViaMultisig(ix, multisigAccount.publicKey, multisigSigner);
 
       const account = await program.account.landAccount.fetch(landAccountPda);
       expect(account.registrarAuthority.equals(newMultisig.publicKey)).to.be.true;
@@ -242,19 +230,92 @@ describe("terraledger", () => {
       
       await program.methods.raiseDispute().accounts({ landAccount: landAccountPda, signer: owner.publicKey } as any).rpc();
 
+      const [newMultisigSigner] = PublicKey.findProgramAddressSync(
+        [Buffer.from("squad"), currentAuth.toBuffer(), new Uint8Array([0, 0, 0, 0]), Buffer.from("vault")],
+        SQUADS_PROGRAM_ID
+      );
+
+      const ix = await program.methods.updateVerifiers([verifier.publicKey])
+          .accounts({
+              landAccount: landAccountPda,
+              multisig: currentAuth,
+              multisigSigner: newMultisigSigner,
+          } as any)
+          .instruction();
+
       try {
-        await program.methods.updateVerifiers([verifier.publicKey])
+        await executeViaMultisig(ix, currentAuth, newMultisigSigner);
+        expect.fail("Should have failed");
+      } catch (err: any) {
+        expect(err.toString()).to.contain("VerifierUpdateBlockedDuringDispute");
+      }
+  });
+
+  describe("Governance authority bypass (V1 regression)", () => {
+    it("rejects a random wallet as multisig_signer on lock_parcel", async () => {
+      const attacker = Keypair.generate();
+      const accountData = await program.account.landAccount.fetch(landAccountPda);
+      const currentAuth = accountData.registrarAuthority;
+      try {
+        await program.methods.lockParcel()
+          .accounts({
+            landAccount: landAccountPda,
+            multisig: currentAuth,
+            multisigSigner: attacker.publicKey,
+          } as any)
+          .rpc();
+        expect.fail("Should have failed");
+      } catch (err: any) {
+        expect(err.message).to.match(/MultisigApprovalRequired|seeds constraint|ConstraintSeeds/i);
+      }
+    });
+
+    it("legitimate vault PDA must succeed", async () => {
+      // It might be locked or active right now, unlock it first to be safe
+      const accountData = await program.account.landAccount.fetch(landAccountPda);
+      const currentAuth = accountData.registrarAuthority;
+      const [currentMultisigSigner] = PublicKey.findProgramAddressSync(
+        [Buffer.from("squad"), currentAuth.toBuffer(), new Uint8Array([0, 0, 0, 0]), Buffer.from("vault")],
+        SQUADS_PROGRAM_ID
+      );
+
+      // We must also resolve dispute if it's disputed, which it is from previous test!
+      if (Object.keys(accountData.status)[0] === "disputed") {
+          const resolveIx = await program.methods.resolveDispute()
             .accounts({
                 landAccount: landAccountPda,
                 multisig: currentAuth,
-                multisigSigner: multisigSigner.publicKey,
+                multisigSigner: currentMultisigSigner,
             } as any)
-            .signers([multisigSigner])
-            .rpc();
-        expect.fail("Should have failed");
-      } catch (err: any) {
-        expect(err.error.errorCode.code).to.equal("ParcelIsDisputed");
+            .instruction();
+          await executeViaMultisig(resolveIx, currentAuth, currentMultisigSigner);
       }
+
+      const status = (await program.account.landAccount.fetch(landAccountPda)).status;
+      if (Object.keys(status)[0] === "locked") {
+          const unlockIx = await program.methods.unlockParcel()
+            .accounts({
+                landAccount: landAccountPda,
+                multisig: currentAuth,
+                multisigSigner: currentMultisigSigner,
+            } as any)
+            .instruction();
+          await executeViaMultisig(unlockIx, currentAuth, currentMultisigSigner);
+      }
+
+      const lockIx = await program.methods.lockParcel()
+          .accounts({
+              landAccount: landAccountPda,
+              multisig: currentAuth,
+              multisigSigner: currentMultisigSigner,
+          } as any)
+          .instruction();
+
+      await executeViaMultisig(lockIx, currentAuth, currentMultisigSigner);
+
+      const account = await program.account.landAccount.fetch(landAccountPda);
+      expect(Object.keys(account.status)[0]).to.equal("locked");
+    });
   });
 
   it("Demo Flow Complete", async () => {

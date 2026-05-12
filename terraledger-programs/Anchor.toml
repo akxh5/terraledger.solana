@@ -7,6 +7,7 @@ skip-lint = false
 
 [programs.localnet]
 terraledger = "FXfyLUSeLn8pZrUTPjN7iGqjqRBwLRiHz2XKhnoDriQM"
+squads_mock = "SQDS4ep65T869zMMBKyuUq6aD6EgTu8psMjkvj52pCf"
 
 [registry]
 url = "https://api.apr.dev"
