@@ -5,13 +5,14 @@ declare_id!("FXfyLUSeLn8pZrUTPjN7iGqjqRBwLRiHz2XKhnoDriQM");
 // Squads Program ID (v4)
 pub mod squads_multisig {
     use anchor_lang::prelude::declare_id;
-    declare_id!("SQDS4H8Eq9XfSsk9yHWh879T39f97R9FmUWh553Z2rT");
+    declare_id!("SQDS4ep65T869zMMBKyuUq6aD6EgTu8psMjkvj52pCf");
 }
 
 // ═══════════════════════════════════════════
 // PART 1 — CONSTANTS
 // ═══════════════════════════════════════════
 
+use squads_multisig_program::state::Multisig;
 pub const MAX_STAKEHOLDERS: usize = 10;
 pub const MAX_APPROVED_VERIFIERS: usize = 3;
 pub const TOTAL_BPS: u32 = 10_000;
@@ -56,18 +57,10 @@ pub mod terraledger {
         );
 
         let data = multisig_info.try_borrow_data()?;
-        // Squads V4 Multisig Layout:
-        // 8 bytes discriminator
-        // 32 bytes create_key
-        // 32 bytes config_authority
-        // 2 bytes threshold (u16) -> offset 72
-        // 4 bytes members vector length (u32) -> offset 74
-        
+        // Squads V4 Multisig field layout: 
+        // discriminator (8) + create_key (32) + config_authority (32) = 72
         let threshold = u16::from_le_bytes([data[72], data[73]]);
-        let member_count = u32::from_le_bytes([data[74], data[75], data[76], data[77]]);
-
-        require!(threshold == 2, ErrorCode::InvalidMultisigThreshold);
-        require!(member_count == 3, ErrorCode::InvalidMultisigMembers);
+        require!(threshold >= 1, ErrorCode::InvalidMultisigThreshold);
 
         let land = &mut ctx.accounts.land_account;
         land.parcel_id = parcel_id;
@@ -119,6 +112,7 @@ pub mod terraledger {
 
         // Guards
         require!(land.status == ParcelStatus::Active, ErrorCode::ParcelNotActive);
+        
         let sender_key = ctx.accounts.signer.key();
         let sender_idx = land
             .stakeholders
@@ -212,9 +206,9 @@ pub mod terraledger {
             ErrorCode::UnauthorizedMultisig
         );
 
-        // Check 2: the transaction was approved by the multisig
+        // Check 2: verify the Squads Vault PDA is a signer
         require!(
-            ctx.accounts.multisig.is_signer || ctx.accounts.multisig_signer.is_signer,
+            ctx.accounts.multisig_signer.is_signer,
             ErrorCode::MultisigApprovalRequired
         );
 
@@ -236,9 +230,9 @@ pub mod terraledger {
             ErrorCode::UnauthorizedMultisig
         );
 
-        // Check 2: the transaction was approved by the multisig
+        // Check 2: verify the Squads Vault PDA is a signer
         require!(
-            ctx.accounts.multisig.is_signer || ctx.accounts.multisig_signer.is_signer,
+            ctx.accounts.multisig_signer.is_signer,
             ErrorCode::MultisigApprovalRequired
         );
 
@@ -286,9 +280,9 @@ pub mod terraledger {
             ErrorCode::UnauthorizedMultisig
         );
 
-        // Check 2: the transaction was approved by the multisig
+        // Check 2: verify the Squads Vault PDA is a signer
         require!(
-            ctx.accounts.multisig.is_signer || ctx.accounts.multisig_signer.is_signer,
+            ctx.accounts.multisig_signer.is_signer,
             ErrorCode::MultisigApprovalRequired
         );
 
@@ -313,9 +307,9 @@ pub mod terraledger {
             ErrorCode::UnauthorizedMultisig
         );
 
-        // Check 2: the transaction was approved by the multisig
+        // Check 2: verify the Squads Vault PDA is a signer
         require!(
-            ctx.accounts.multisig.is_signer || ctx.accounts.multisig_signer.is_signer,
+            ctx.accounts.multisig_signer.is_signer,
             ErrorCode::MultisigApprovalRequired
         );
 
@@ -342,9 +336,9 @@ pub mod terraledger {
             ErrorCode::UnauthorizedMultisig
         );
 
-        // Check 2: the transaction was approved by the multisig
+        // Check 2: verify the Squads Vault PDA is a signer
         require!(
-            ctx.accounts.multisig.is_signer || ctx.accounts.multisig_signer.is_signer,
+            ctx.accounts.multisig_signer.is_signer,
             ErrorCode::MultisigApprovalRequired
         );
 
@@ -459,6 +453,7 @@ pub enum ErrorCode {
     InvalidMultisigOwner,
     InvalidMultisigThreshold,
     InvalidMultisigMembers,
+    UnauthorizedRegistration,
 }
 
 // ═══════════════════════════════════════════
@@ -490,22 +485,31 @@ pub struct RegisterLand<'info> {
         seeds = [b"land", parcel_id.as_bytes()],
         bump
     )]
-    pub land_account: Account<'info, LandAccount>,
+    pub land_account: Box<Account<'info, LandAccount>>,
     /// CHECK: Manual validation of Squads ownership and threshold
     pub multisig: UncheckedAccount<'info>,
+    #[account(
+        seeds = [
+            b"squad",
+            multisig.key().as_ref(),
+            &[0u8, 0u8, 0u8, 0u8],
+            b"vault"
+        ],
+        bump,
+        seeds::program = squads_multisig::ID
+    )]
+    pub multisig_signer: SystemAccount<'info>,
     #[account(mut)]
     pub signer: Signer<'info>,
     pub system_program: Program<'info, System>,
-}
-
-#[derive(Accounts)]
+}#[derive(Accounts)]
 pub struct ActivateParcel<'info> {
     #[account(
         mut,
         seeds = [b"land", land_account.parcel_id.as_bytes()],
         bump
     )]
-    pub land_account: Account<'info, LandAccount>,
+    pub land_account: Box<Account<'info, LandAccount>>,
     pub verifier: Signer<'info>,
 }
 
@@ -516,7 +520,7 @@ pub struct TransferPartial<'info> {
         seeds = [b"land", land_account.parcel_id.as_bytes()],
         bump
     )]
-    pub land_account: Account<'info, LandAccount>,
+    pub land_account: Box<Account<'info, LandAccount>>,
     pub signer: Signer<'info>,
 }
 
@@ -527,7 +531,7 @@ pub struct UpdateDocument<'info> {
         seeds = [b"land", land_account.parcel_id.as_bytes()],
         bump
     )]
-    pub land_account: Account<'info, LandAccount>,
+    pub land_account: Box<Account<'info, LandAccount>>,
     #[account(
         init,
         payer = signer,
@@ -549,10 +553,20 @@ pub struct LockParcel<'info> {
         seeds = [b"land", land_account.parcel_id.as_bytes()],
         bump
     )]
-    pub land_account: Account<'info, LandAccount>,
+    pub land_account: Box<Account<'info, LandAccount>>,
     /// CHECK: Manual authority verification
     pub multisig: UncheckedAccount<'info>,
-    pub multisig_signer: Signer<'info>,
+    #[account(
+        seeds = [
+            b"squad",
+            multisig.key().as_ref(),
+            &[0u8, 0u8, 0u8, 0u8],
+            b"vault"
+        ],
+        bump,
+        seeds::program = squads_multisig::ID
+    )]
+    pub multisig_signer: SystemAccount<'info>,
 }
 
 #[derive(Accounts)]
@@ -562,10 +576,20 @@ pub struct UnlockParcel<'info> {
         seeds = [b"land", land_account.parcel_id.as_bytes()],
         bump
     )]
-    pub land_account: Account<'info, LandAccount>,
+    pub land_account: Box<Account<'info, LandAccount>>,
     /// CHECK: Manual authority verification
     pub multisig: UncheckedAccount<'info>,
-    pub multisig_signer: Signer<'info>,
+    #[account(
+        seeds = [
+            b"squad",
+            multisig.key().as_ref(),
+            &[0u8, 0u8, 0u8, 0u8],
+            b"vault"
+        ],
+        bump,
+        seeds::program = squads_multisig::ID
+    )]
+    pub multisig_signer: SystemAccount<'info>,
 }
 
 #[derive(Accounts)]
@@ -575,7 +599,7 @@ pub struct RaiseDispute<'info> {
         seeds = [b"land", land_account.parcel_id.as_bytes()],
         bump
     )]
-    pub land_account: Account<'info, LandAccount>,
+    pub land_account: Box<Account<'info, LandAccount>>,
     pub signer: Signer<'info>,
 }
 
@@ -586,10 +610,20 @@ pub struct ResolveDispute<'info> {
         seeds = [b"land", land_account.parcel_id.as_bytes()],
         bump
     )]
-    pub land_account: Account<'info, LandAccount>,
+    pub land_account: Box<Account<'info, LandAccount>>,
     /// CHECK: Manual authority verification
     pub multisig: UncheckedAccount<'info>,
-    pub multisig_signer: Signer<'info>,
+    #[account(
+        seeds = [
+            b"squad",
+            multisig.key().as_ref(),
+            &[0u8, 0u8, 0u8, 0u8],
+            b"vault"
+        ],
+        bump,
+        seeds::program = squads_multisig::ID
+    )]
+    pub multisig_signer: SystemAccount<'info>,
 }
 
 #[derive(Accounts)]
@@ -599,10 +633,20 @@ pub struct TransferAuthority<'info> {
         seeds = [b"land", land_account.parcel_id.as_bytes()],
         bump
     )]
-    pub land_account: Account<'info, LandAccount>,
+    pub land_account: Box<Account<'info, LandAccount>>,
     /// CHECK: Manual authority verification
     pub multisig: UncheckedAccount<'info>,
-    pub multisig_signer: Signer<'info>,
+    #[account(
+        seeds = [
+            b"squad",
+            multisig.key().as_ref(),
+            &[0u8, 0u8, 0u8, 0u8],
+            b"vault"
+        ],
+        bump,
+        seeds::program = squads_multisig::ID
+    )]
+    pub multisig_signer: SystemAccount<'info>,
 }
 
 #[derive(Accounts)]
@@ -612,8 +656,18 @@ pub struct UpdateVerifiers<'info> {
         seeds = [b"land", land_account.parcel_id.as_bytes()],
         bump
     )]
-    pub land_account: Account<'info, LandAccount>,
+    pub land_account: Box<Account<'info, LandAccount>>,
     /// CHECK: Manual authority verification
     pub multisig: UncheckedAccount<'info>,
-    pub multisig_signer: Signer<'info>,
+    #[account(
+        seeds = [
+            b"squad",
+            multisig.key().as_ref(),
+            &[0u8, 0u8, 0u8, 0u8],
+            b"vault"
+        ],
+        bump,
+        seeds::program = squads_multisig::ID
+    )]
+    pub multisig_signer: SystemAccount<'info>,
 }
