@@ -49,7 +49,7 @@ pub mod terraledger {
         );
         validate_cap_table(&initial_stakeholders)?;
 
-        // Squads validation (raw data check to avoid serialization conflicts)
+        // Squads validation
         let multisig_info = ctx.accounts.multisig.to_account_info();
         require!(
             multisig_info.owner == &squads_multisig::ID,
@@ -57,8 +57,7 @@ pub mod terraledger {
         );
 
         let data = multisig_info.try_borrow_data()?;
-        // Squads V4 Multisig field layout: 
-        // discriminator (8) + create_key (32) + config_authority (32) = 72
+        require!(data.len() >= 74, ErrorCode::InvalidMultisigOwner); // Bounds check to prevent panic
         let threshold = u16::from_le_bytes([data[72], data[73]]);
         require!(threshold >= 1, ErrorCode::InvalidMultisigThreshold);
 
@@ -126,13 +125,20 @@ pub mod terraledger {
         );
 
         // Mutation
-        land.stakeholders[sender_idx].shares_bps -= shares_bps;
+        land.stakeholders[sender_idx].shares_bps = land.stakeholders[sender_idx]
+            .shares_bps
+            .checked_sub(shares_bps)
+            .ok_or(ErrorCode::ArithmeticError)?;
+
         if land.stakeholders[sender_idx].shares_bps == 0 {
             land.stakeholders.remove(sender_idx);
         }
 
         if let Some(r) = land.stakeholders.iter_mut().find(|s| s.owner == recipient) {
-            r.shares_bps += shares_bps;
+            r.shares_bps = r
+                .shares_bps
+                .checked_add(shares_bps)
+                .ok_or(ErrorCode::ArithmeticError)?;
         } else {
             require!(
                 land.stakeholders.len() < MAX_STAKEHOLDERS,
@@ -360,7 +366,7 @@ pub mod terraledger {
 // PART 2 — DATA STRUCTURES
 // ═══════════════════════════════════════════
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpace)]
 pub enum ParcelStatus {
     PendingVerification,
     Active,
@@ -368,26 +374,29 @@ pub enum ParcelStatus {
     Disputed,
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace)]
 pub struct Stakeholder {
     pub owner: Pubkey,   // 32 bytes
     pub shares_bps: u16, // 2 bytes
 }
 
 #[account]
+#[derive(InitSpace)]
 pub struct LandAccount {
-    pub parcel_id: String,               // max 64 bytes (byte-checked)
-    pub ipfs_document: String,           // max 64 bytes (byte-checked)
+    #[max_len(64)]
+    pub parcel_id: String,
+    #[max_len(64)]
+    pub ipfs_document: String,
     pub registered_at: i64,
     pub history_count: u64,
-    pub stakeholders: Vec<Stakeholder>,  // max 10
+    #[max_len(10)]
+    pub stakeholders: Vec<Stakeholder>,
     pub registrar_authority: Pubkey,
-    pub approved_verifiers: Vec<Pubkey>, // max 3
+    #[max_len(3)]
+    pub approved_verifiers: Vec<Pubkey>,
     pub status: ParcelStatus,
-    pub dispute_threshold_bps: u16, // immutable after registration
+    pub dispute_threshold_bps: u16,
 }
-
-pub const LAND_ACCOUNT_SIZE: usize = 8 + 4 + 64 + 4 + 64 + 8 + 8 + 4 + (10 * (32 + 2)) + 32 + 4 + (3 * 32) + 1 + 2 + 32;
 
 // ═══════════════════════════════════════════
 // PART 3 — HELPER FUNCTIONS
@@ -454,6 +463,7 @@ pub enum ErrorCode {
     InvalidMultisigThreshold,
     InvalidMultisigMembers,
     UnauthorizedRegistration,
+    ArithmeticError,
 }
 
 // ═══════════════════════════════════════════
@@ -481,7 +491,7 @@ pub struct RegisterLand<'info> {
     #[account(
         init,
         payer = signer,
-        space = LAND_ACCOUNT_SIZE,
+        space = 8 + LandAccount::INIT_SPACE,
         seeds = [b"land", parcel_id.as_bytes()],
         bump
     )]
