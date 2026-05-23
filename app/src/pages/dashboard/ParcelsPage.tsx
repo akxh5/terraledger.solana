@@ -26,6 +26,7 @@ import {
   History,
   FileText,
   Upload,
+  Map as MapIcon,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -53,6 +54,9 @@ import { PublicKey } from "@solana/web3.js";
 import { useParcels, Parcel } from "@/context/ParcelsContext";
 import { useRoles } from "@/hooks/useRoles";
 import { useNavigate } from "react-router-dom";
+import ParcelMap, { ParcelDrawData } from "@/components/ParcelMap";
+import ParcelInfoCard from "@/components/ParcelInfoCard";
+import ParcelMapViewer from "@/components/ParcelMapViewer";
 
 const STATUS_COLORS = {
   Active: "text-emerald-400 bg-emerald-400/10 border border-emerald-400/20",
@@ -74,6 +78,12 @@ export default function ParcelsPage() {
 
   // Registration state
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
+  const [registrationStep, setRegistrationStep] = useState(1);
+  const [parcelDrawData, setParcelDrawData] = useState<ParcelDrawData | null>(null);
+  const [isManualId, setIsManualId] = useState(false);
+  const [locationDescription, setLocationDescription] = useState("");
+  const [geoJsonCid, setGeoJsonCid] = useState("");
+
   const [newParcelId, setNewParcelId] = useState("");
   const [newIpfsDocument, setNewIpfsDocument] = useState("");
   const [docFile, setDocFile] = useState<File | null>(null);
@@ -127,6 +137,43 @@ export default function ParcelsPage() {
       if (updated) setSelected(updated);
     }
   }, [parcels, selected?.pda]);
+
+  // Metadata fetching
+  const [selectedMetadata, setSelectedMetadata] = useState<any>(null);
+  const [isLoadingMetadata, setIsLoadingMetadata] = useState(false);
+
+  useEffect(() => {
+    const fetchMetadata = async () => {
+      if (!selected) {
+        setSelectedMetadata(null);
+        return;
+      }
+      
+      setIsLoadingMetadata(true);
+      try {
+        const response = await fetch(`https://gateway.pinata.cloud/ipfs/${selected.ipfsDocument}`);
+        if (!response.ok) throw new Error('Not a metadata file');
+        const contentType = response.headers.get('content-type');
+        
+        if (contentType?.includes('application/json')) {
+          const data = await response.json();
+          if (data.documentCid || data.geoJsonCid) {
+            setSelectedMetadata(data);
+          } else {
+            setSelectedMetadata(null);
+          }
+        } else {
+          setSelectedMetadata(null);
+        }
+      } catch (err) {
+        setSelectedMetadata(null);
+      } finally {
+        setIsLoadingMetadata(false);
+      }
+    };
+
+    fetchMetadata();
+  }, [selected?.pda, selected?.ipfsDocument]);
 
   // Tour logic
   useEffect(() => {
@@ -183,7 +230,8 @@ export default function ParcelsPage() {
     if (!program || !publicKey || isReadOnly) return;
     
     // Frontend Validation
-    if (!newParcelId || newParcelId.trim() === "") {
+    const effectiveParcelId = isManualId ? newParcelId : parcelDrawData?.parcelId;
+    if (!effectiveParcelId || effectiveParcelId.trim() === "") {
       toast({ title: "Invalid Input", description: "Parcel ID is required.", variant: "destructive" });
       return;
     }
@@ -198,20 +246,45 @@ export default function ParcelsPage() {
     
     try {
       setIsRegistering(true);
-      let cid = newIpfsDocument;
+
+      // 1. Upload Boundary GeoJSON if available
+      let finalGeoJsonCid = geoJsonCid;
+      if (parcelDrawData && !finalGeoJsonCid) {
+        const geoJsonBlob = new Blob([JSON.stringify(parcelDrawData.geoJson)], { type: 'application/json' });
+        const geoJsonFile = new File([geoJsonBlob], `${effectiveParcelId}-boundary.json`, { type: 'application/json' });
+        finalGeoJsonCid = await uploadToPinata(geoJsonFile);
+        setGeoJsonCid(finalGeoJsonCid);
+      }
+
+      // 2. Upload Legal Document
+      let docCid = newIpfsDocument;
       if (docFile) {
         setIsUploadingDoc(true);
         try {
-          cid = hasPinataCredentials()
-            ? await uploadToPinata(docFile, newParcelId + '-registration')
-            : 'QmTest' + Date.now().toString(36).toUpperCase();
+          docCid = await uploadToPinata(docFile, effectiveParcelId + '-registration');
         } finally { setIsUploadingDoc(false); }
       }
+
+      // 3. Create and Upload Metadata JSON
+      const metadata = {
+        documentCid: docCid,
+        geoJsonCid: finalGeoJsonCid,
+        parcelId: effectiveParcelId,
+        locationDescription,
+        registeredAt: new Date().toISOString(),
+        registeredBy: publicKey.toString(),
+        area: parcelDrawData?.area,
+        centroid: parcelDrawData?.centroid
+      };
+
+      const metadataBlob = new Blob([JSON.stringify(metadata)], { type: 'application/json' });
+      const metadataFile = new File([metadataBlob], `${effectiveParcelId}-metadata.json`, { type: 'application/json' });
+      const metadataCid = await uploadToPinata(metadataFile);
       
       const multisigPda = new anchor.web3.PublicKey(multisigAddress);
       const vaultPda = getVaultPda(multisigPda);
       const [landAccountPda] = anchor.web3.PublicKey.findProgramAddressSync(
-        [Buffer.from('land'), Buffer.from(newParcelId)],
+        [Buffer.from('land'), Buffer.from(effectiveParcelId)],
         program.programId
       );
       
@@ -226,7 +299,7 @@ export default function ParcelsPage() {
       const initialVerifiers = [publicKey];
 
       const sig = await program.methods
-        .registerLand(newParcelId, cid, initialStakeholders, initialVerifiers, disputeThreshold)
+        .registerLand(effectiveParcelId, metadataCid, initialStakeholders, initialVerifiers, disputeThreshold)
         .accounts({
           landAccount: landAccountPda,
           multisig: multisigPda,
@@ -243,6 +316,7 @@ export default function ParcelsPage() {
 
       setIsRegisterModalOpen(false);
       setNewParcelId(''); setNewIpfsDocument(''); setDocFile(null); setMultisigAddress('');
+      setRegistrationStep(1); setParcelDrawData(null); setLocationDescription(''); setGeoJsonCid('');
       setTimeout(() => refreshParcels(), 3000);
     } catch (err) {
       toast({ title: 'Registration Failed', description: (err as Error).message, variant: 'destructive' });
@@ -403,15 +477,12 @@ export default function ParcelsPage() {
     return matchSearch && matchStatus;
   });
 
-  const currentUserStake = selected?.stakeholders.find(s => s.owner === publicKey?.toString())?.sharesBps || 0;
-  const isVerifier = selected?.approvedVerifiers.includes(publicKey?.toString() ?? "");
-
   return (
     <div className="flex gap-6 min-h-0 relative">
       <div className="flex-1 min-w-0">
         <motion.div {...fadeUp(0)} className="mb-5">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold flex items-center gap-2">
+            <h2 className="text-lg font-semibold flex items-center gap-2" id="property-registry-header">
                 <ShieldCheck size={20} className="text-primary" /> Property Registry
             </h2>
             <div className="flex items-center gap-2">
@@ -422,29 +493,189 @@ export default function ParcelsPage() {
                 <DialogTrigger asChild>
                     <Button size="sm" className="gap-2" disabled={isReadOnly}><Plus size={16} /> New Registration</Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-[500px] bg-background border-border/50 max-h-[80vh] overflow-y-auto">
-                    <DialogHeader><DialogTitle>Register Land</DialogTitle></DialogHeader>
-                    <form onSubmit={handleRegister} className="space-y-4 py-4">
-                    <div className="grid grid-cols-2 gap-4">
+                <DialogContent className="sm:max-w-[600px] bg-background border-border/50 max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>Register Land</DialogTitle>
+                      <div className="flex items-center gap-2 mt-2">
+                        {[1, 2, 3].map((step) => (
+                          <div key={step} className="flex items-center gap-2">
+                            <div className={cn(
+                              "w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold border transition-colors",
+                              registrationStep >= step ? "bg-primary border-primary text-primary-foreground" : "bg-secondary border-border text-muted-foreground"
+                            )}>
+                              {step}
+                            </div>
+                            <span className={cn(
+                              "text-[10px] font-medium uppercase tracking-widest",
+                              registrationStep >= step ? "text-foreground" : "text-muted-foreground"
+                            )}>
+                              {step === 1 ? "Location" : step === 2 ? "Details" : "Register"}
+                            </span>
+                            {step < 3 && <div className="w-4 h-px bg-border mx-1" />}
+                          </div>
+                        ))}
+                      </div>
+                    </DialogHeader>
+
+                    {registrationStep === 1 && (
+                      <div className="space-y-4 py-4">
                         <div className="space-y-2">
-                          <Label>Parcel ID</Label>
-                          <Input placeholder="KE-NBI-0042" value={newParcelId} onChange={(e) => setNewParcelId(e.target.value)} />
+                          <Label className="text-xs font-bold uppercase tracking-tight">Step 1: Mark Land Boundary</Label>
+                          <p className="text-[11px] text-muted-foreground leading-relaxed">
+                            Draw the exact boundary of your land on the map below. This will automatically generate a unique Parcel ID based on the centroid.
+                          </p>
+                          <ParcelMap 
+                            onParcelDrawn={setParcelDrawData} 
+                            height="350px" 
+                            className="mt-2"
+                          />
                         </div>
-                        <div className="space-y-2">
-                          <Label>Document</Label>
-                          <Input type="file" accept="application/pdf,image/*" className="text-[11px]" onChange={(e) => { const f = e.target.files?.[0]; if (f) { setDocFile(f); setNewIpfsDocument(""); } }} />
-                        </div>
-                    </div>
-                    <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 space-y-2">
-                        <Label className="text-[10px] uppercase tracking-widest text-primary">Registrar Authority</Label>
-                        {multisigAddress ? <span className="text-[11px] font-mono text-emerald-400 break-all">{multisigAddress}</span> : (
-                            <Button type="button" size="sm" variant="outline" className="h-8 text-xs w-full" onClick={handleCreateMultisig} disabled={isCreatingMultisig}>
-                                {isCreatingMultisig ? "Provisioning…" : "Provision Institutional Multisig"}
-                            </Button>
+                        
+                        {parcelDrawData ? (
+                          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                            <ParcelInfoCard 
+                              data={parcelDrawData} 
+                              onConfirm={() => setRegistrationStep(2)} 
+                            />
+                          </motion.div>
+                        ) : (
+                          <div className="p-8 rounded-lg border border-dashed border-border bg-secondary/20 text-center">
+                            <MapPin size={24} className="mx-auto text-muted-foreground mb-2 opacity-40" />
+                            <p className="text-xs text-muted-foreground">Waiting for boundary selection...</p>
+                          </div>
                         )}
-                    </div>
-                    <DialogFooter><Button type="submit" disabled={isRegistering}>{isRegistering ? "Registering..." : "Submit Registry"}</Button></DialogFooter>
-                    </form>
+                      </div>
+                    )}
+
+                    {registrationStep === 2 && (
+                      <form onSubmit={(e) => { e.preventDefault(); setRegistrationStep(3); }} className="space-y-4 py-4">
+                        <div className="space-y-4">
+                          <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
+                            <div className="flex justify-between items-start mb-2">
+                              <Label className="text-[10px] uppercase font-bold text-primary tracking-widest">Parcel ID</Label>
+                              <Button 
+                                type="button" 
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-5 text-[9px] gap-1"
+                                onClick={() => setIsManualId(!isManualId)}
+                              >
+                                {isManualId ? "Use Map ID" : "Edit Manually"}
+                              </Button>
+                            </div>
+                            {isManualId ? (
+                              <Input 
+                                placeholder="Enter manual Parcel ID..." 
+                                value={newParcelId} 
+                                onChange={(e) => setNewParcelId(e.target.value)}
+                                className="h-8 text-xs font-mono"
+                              />
+                            ) : (
+                              <code className="text-xs font-mono font-bold block">{parcelDrawData?.parcelId}</code>
+                            )}
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label className="text-xs">Location Description</Label>
+                              <Input 
+                                placeholder="Survey No, Village, etc." 
+                                value={locationDescription} 
+                                onChange={(e) => setLocationDescription(e.target.value)} 
+                                className="h-9 text-xs"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label className="text-xs">Legal Document (PDF/Img)</Label>
+                              <Input
+                                type="file"
+                                accept="application/pdf,image/*"
+                                className="text-[11px] h-9"
+                                onChange={(e) => {
+                                  const f = e.target.files?.[0];
+                                  if (f) { setDocFile(f); setNewIpfsDocument(""); }
+                                }}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label className="text-xs">Dispute Threshold (BPS)</Label>
+                            <Input 
+                              type="number" 
+                              min="100" 
+                              max="2000" 
+                              value={disputeThreshold} 
+                              onChange={(e) => setDisputeThreshold(parseInt(e.target.value))} 
+                              className="h-9 text-xs"
+                            />
+                            <p className="text-[10px] text-muted-foreground">1000 bps = 10% stake required to raise a dispute.</p>
+                          </div>
+                        </div>
+
+                        <DialogFooter className="gap-2">
+                          <Button type="button" variant="ghost" size="sm" onClick={() => setRegistrationStep(1)}>Back</Button>
+                          <Button type="submit">Continue to Registry</Button>
+                        </DialogFooter>
+                      </form>
+                    )}
+
+                    {registrationStep === 3 && (
+                      <form onSubmit={handleRegister} className="space-y-6 py-4">
+                        <div className="space-y-4">
+                          <div className="p-4 rounded-xl bg-secondary/30 border border-border space-y-4">
+                            <h3 className="text-xs font-bold uppercase tracking-widest flex items-center gap-2">
+                              <Info size={14} className="text-primary" />
+                              Final Verification
+                            </h3>
+                            <div className="grid grid-cols-2 gap-y-3 text-[11px]">
+                              <div>
+                                <p className="text-muted-foreground uppercase text-[9px] font-bold">Parcel ID</p>
+                                <p className="font-mono font-bold truncate">{isManualId ? newParcelId : parcelDrawData?.parcelId}</p>
+                              </div>
+                              <div>
+                                <p className="text-muted-foreground uppercase text-[9px] font-bold">Area</p>
+                                <p className="font-bold">{parcelDrawData?.area.toLocaleString()} m²</p>
+                              </div>
+                              <div className="col-span-2">
+                                <p className="text-muted-foreground uppercase text-[9px] font-bold">Documents</p>
+                                <p className="font-medium flex items-center gap-1">
+                                  <FileText size={10} className="text-primary" />
+                                  {docFile?.name || "Manual CID provided"}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 space-y-2">
+                            <Label className="text-[10px] uppercase tracking-widest text-primary font-bold">Registrar Authority (Squads Multisig)</Label>
+                            {multisigAddress ? (
+                                <div className="flex flex-col gap-2">
+                                  <div className="flex items-center gap-2">
+                                      <ShieldCheck size={13} className="text-emerald-400 shrink-0" />
+                                      <span className="text-[11px] font-mono text-emerald-400 break-all">{multisigAddress}</span>
+                                  </div>
+                                  <Badge variant="outline" className="w-fit text-[9px] bg-emerald-500/10 text-emerald-400 border-emerald-500/20">2-of-3 Threshold</Badge>
+                                </div>
+                            ) : (
+                                <>
+                                    <p className="text-[10px] text-muted-foreground leading-snug">A 2-of-3 Squads multisig will be provisioned linking you with the Validator Council and TerraLedger Ops.</p>
+                                    <Button type="button" size="sm" variant="outline" className="h-8 text-xs gap-2 w-full border-primary/50 text-primary hover:bg-primary/10" onClick={handleCreateMultisig} disabled={isCreatingMultisig}>
+                                        {isCreatingMultisig ? <><Loader2 size={12} className="animate-spin" /> Provisioning…</> : <><ShieldCheck size={12} /> Provision Institutional Multisig</>}
+                                    </Button>
+                                </>
+                            )}
+                          </div>
+                        </div>
+
+                        <DialogFooter className="gap-2">
+                          <Button type="button" variant="ghost" size="sm" onClick={() => setRegistrationStep(2)} disabled={isRegistering}>Back</Button>
+                          <Button type="submit" disabled={isRegistering || !multisigAddress} className="gap-2">
+                            {isRegistering ? <><Loader2 size={16} className="animate-spin" /> Registering...</> : <><Plus size={16} /> Submit Registry</>}
+                          </Button>
+                        </DialogFooter>
+                      </form>
+                    )}
                 </DialogContent>
                 </Dialog>
             </div>
@@ -483,18 +714,80 @@ export default function ParcelsPage() {
             <div className="flex justify-between items-center mb-5"><h3 className="text-base font-semibold font-mono">{selected.parcelId}</h3><button onClick={() => setSelected(null)}><X size={13} /></button></div>
             <div className="mb-6"><CapTable stakeholders={selected.stakeholders} /></div>
             <div className="mb-6">
-                <div className="flex items-center justify-between mb-3"><Label className="text-[10px] uppercase">Documents</Label>{!isReadOnly && selected.status === "Active" && <Button variant="ghost" size="sm" className="h-6 text-[9px]" onClick={() => setIsUpdateDocOpen(!isUpdateDocOpen)}><Upload size={9} /> Update Doc</Button>}</div>
+                <div className="flex items-center justify-between mb-3">
+                  <Label className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Documents & Map</Label>
+                  {!isReadOnly && selected.status === "Active" && (
+                    <Button variant="ghost" size="sm" className="h-6 text-[9px] gap-1 text-primary" onClick={() => setIsUpdateDocOpen(!isUpdateDocOpen)}>
+                      <Upload size={9} /> Update Doc
+                    </Button>
+                  )}
+                </div>
+
                 {isUpdateDocOpen && (
                   <div className="mb-3 p-3 rounded-lg bg-primary/5 border border-primary/20 space-y-2">
-                    <Input type="file" accept="application/pdf,image/*" className="text-[10px] h-8" onChange={(e) => setUpdateDocFile(e.target.files?.[0] ?? null)} />
+                    <Input type="file" accept="application/pdf,image/*" className="text-[11px] h-8" onChange={(e) => setUpdateDocFile(e.target.files?.[0] ?? null)} />
                     <Button size="sm" className="w-full h-8 text-[10px]" onClick={handleUpdateDocument} disabled={isUpdatingDoc || !updateDocFile}>{isUpdatingDoc ? "Updating..." : "Submit on-chain"}</Button>
                   </div>
                 )}
-                <div className="space-y-2">
-                    <a href={`https://ipfs.io/ipfs/${selected.ipfsDocument}`} target="_blank" rel="noreferrer" className="p-2 rounded bg-primary/5 border border-primary/20 text-[10px] flex items-center justify-between">
-                        <div className="flex items-center gap-2 font-mono"><ExternalLink size={10} /><span className="truncate w-28">{selected.ipfsDocument}</span></div>
-                        <span className="text-[8px] opacity-60">Current</span>
-                    </a>
+                
+                <div className="space-y-3">
+                    {/* Primary Document */}
+                    <div className="space-y-1.5">
+                      <p className="text-[9px] uppercase font-bold text-muted-foreground opacity-60 tracking-tight">Legal Title Deed</p>
+                      <a 
+                        href={`https://ipfs.io/ipfs/${selectedMetadata?.documentCid || selected.ipfsDocument}`} 
+                        target="_blank" 
+                        rel="noreferrer" 
+                        className="p-2 rounded bg-primary/5 border border-primary/20 text-[10px] flex items-center justify-between hover:bg-primary/10 transition-colors group"
+                      >
+                          <div className="flex items-center gap-2 font-mono">
+                              <ExternalLink size={10} className="text-primary" />
+                              <span className="truncate w-28">{selectedMetadata?.documentCid || selected.ipfsDocument}</span>
+                          </div>
+                          <span className="text-[8px] opacity-60 group-hover:opacity-100 transition-opacity">Open</span>
+                      </a>
+                    </div>
+
+                    {/* Map Boundary if available */}
+                    {selectedMetadata?.geoJsonCid && (
+                      <div className="space-y-1.5">
+                        <p className="text-[9px] uppercase font-bold text-muted-foreground opacity-60 tracking-tight">Geospatial Boundary</p>
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button variant="outline" size="sm" className="w-full h-8 text-[10px] gap-2 border-emerald-500/20 bg-emerald-500/5 text-emerald-400 hover:bg-emerald-500/10">
+                              <MapIcon size={12} /> View Boundary on Map
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="sm:max-w-[700px] bg-background border-border/50">
+                            <DialogHeader>
+                              <DialogTitle className="flex items-center gap-2 text-sm uppercase tracking-widest font-bold">
+                                <MapIcon className="text-primary" size={16} />
+                                Boundary Selection: {selected.parcelId}
+                              </DialogTitle>
+                            </DialogHeader>
+                            <div className="py-2">
+                              <ParcelMapViewer 
+                                geoJsonCid={selectedMetadata.geoJsonCid} 
+                                metadata={selectedMetadata}
+                                height="400px"
+                              />
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                      </div>
+                    )}
+
+                    {!selectedMetadata && !isLoadingMetadata && (
+                      <div className="p-3 rounded-lg border border-dashed border-border bg-secondary/10 text-center">
+                        <p className="text-[10px] text-muted-foreground italic">No geospatial data attached.</p>
+                      </div>
+                    )}
+
+                    {isLoadingMetadata && (
+                      <div className="flex items-center justify-center py-4">
+                        <Loader2 size={16} className="animate-spin text-primary opacity-40" />
+                      </div>
+                    )}
                 </div>
             </div>
             <div className="border-t border-border/30 pt-4 space-y-4">

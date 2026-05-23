@@ -16,7 +16,7 @@ export function RoleGuard({ children, role }: RoleGuardProps) {
   const rolesData = useRoles();
   const { roles, isLoading } = rolesData;
 
-  if (role === 'owner') return <>{children}</>;
+  const memoizedChildren = React.useMemo(() => children, [children]);
 
   if (!connected) {
     return (
@@ -65,5 +65,5 @@ export function RoleGuard({ children, role }: RoleGuardProps) {
     );
   }
 
-  return <>{children}</>;
+  return <>{memoizedChildren}</>;
 }

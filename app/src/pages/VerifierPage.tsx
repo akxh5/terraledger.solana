@@ -8,12 +8,14 @@ import { useWalletModal } from "@/hooks/useWalletModal";
 import { useParcels, Parcel } from "@/context/ParcelsContext";
 import { useRoles } from "@/hooks/useRoles";
 import * as anchor from "@coral-xyz/anchor";
-import { ShieldCheck, Clock, ExternalLink, RefreshCw, Wallet, FileText, Users, CheckCircle2, Info, ChevronRight } from "lucide-react";
+import { ShieldCheck, Clock, ExternalLink, RefreshCw, Wallet, FileText, Users, CheckCircle2, Info, ChevronRight, Map as MapIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import logo from "@/assets/logo.png";
 import { Link } from "react-router-dom";
 import { CapTable } from "@/components/CapTable";
+import ParcelMapViewer from "@/components/ParcelMapViewer";
+import ParcelThumbnail from "@/components/ParcelThumbnail";
 
 export default function VerifierPage() {
   const { publicKey, connected } = useWallet();
@@ -26,6 +28,41 @@ export default function VerifierPage() {
 
   const [activating, setActivating] = useState<string | null>(null);
   const [selectedParcel, setSelectedParcel] = useState<Parcel | null>(null);
+  const [selectedMetadata, setSelectedMetadata] = useState<any>(null);
+  const [isLoadingMetadata, setIsLoadingMetadata] = useState(false);
+
+  useEffect(() => {
+    const fetchMetadata = async () => {
+      if (!selectedParcel) {
+        setSelectedMetadata(null);
+        return;
+      }
+      
+      setIsLoadingMetadata(true);
+      try {
+        const response = await fetch(`https://gateway.pinata.cloud/ipfs/${selectedParcel.ipfsDocument}`);
+        if (!response.ok) throw new Error('Not a metadata file');
+        const contentType = response.headers.get('content-type');
+        
+        if (contentType?.includes('application/json')) {
+          const data = await response.json();
+          if (data.documentCid || data.geoJsonCid) {
+            setSelectedMetadata(data);
+          } else {
+            setSelectedMetadata(null);
+          }
+        } else {
+          setSelectedMetadata(null);
+        }
+      } catch (err) {
+        setSelectedMetadata(null);
+      } finally {
+        setIsLoadingMetadata(false);
+      }
+    };
+
+    fetchMetadata();
+  }, [selectedParcel?.pda]);
   const [verifierType, setVerifierType] = useState<string>(() => localStorage.getItem(`verifier_type_${publicKey?.toString()}`) || "Unspecified");
 
   const pendingParcels = verifierParcels.filter(p => p.status === "PendingVerification");
@@ -138,35 +175,33 @@ export default function VerifierPage() {
                     key={parcel.pda}
                     {...fadeUp(0.1 + idx * 0.05)}
                     onClick={() => setSelectedParcel(parcel)}
-                    className={`p-6 rounded-2xl border transition-all cursor-pointer ${
+                    className={`p-6 rounded-2xl border transition-all cursor-pointer flex items-center gap-4 ${
                       selectedParcel?.pda === parcel.pda 
                         ? "bg-primary/5 border-primary/40 shadow-[0_0_20px_rgba(0,230,154,0.1)]" 
                         : "liquid-glass border-white/10 hover:border-white/20"
                     }`}
                   >
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                          <Clock className="text-primary" size={20} />
+                    <ParcelThumbnail ipfsCid={parcel.ipfsDocument} />
+                    
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-mono font-bold truncate">{parcel.parcelId}</p>
+                          <Badge variant="outline" className="text-[9px] bg-yellow-400/10 text-yellow-400 border-yellow-400/20 whitespace-nowrap">
+                            Pending
+                          </Badge>
                         </div>
-                        <div>
-                          <p className="text-sm font-mono font-bold">{parcel.parcelId}</p>
-                          <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Registered {parcel.registeredAt}</p>
-                        </div>
+                        <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-medium whitespace-nowrap">Reg {parcel.registeredAt}</p>
                       </div>
-                      <Badge variant="outline" className="text-[10px] bg-yellow-400/10 text-yellow-400 border-yellow-400/20">
-                        Pending Action
-                      </Badge>
+                      
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1.5"><Users size={12} /> {parcel.stakeholders.length} Owners</span>
+                        <span className="flex items-center gap-1.5"><FileText size={12} /> Document Attached</span>
+                      </div>
                     </div>
                     
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <div className="flex items-center gap-4">
-                        <span className="flex items-center gap-1.5"><Users size={12} /> {parcel.stakeholders.length} Stakeholders</span>
-                        <span className="flex items-center gap-1.5"><FileText size={12} /> Legal Doc Attached</span>
-                      </div>
-                      <span className="flex items-center gap-1 text-primary font-medium">
-                        Details <ChevronRight size={14} />
-                      </span>
+                    <div className="shrink-0">
+                      <ChevronRight size={16} className={cn("text-muted-foreground transition-transform", selectedParcel?.pda === parcel.pda && "translate-x-1 text-primary")} />
                     </div>
                   </motion.div>
                 ))}
@@ -230,9 +265,25 @@ export default function VerifierPage() {
                   </div>
 
                   <div>
+                    <span className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2 block font-semibold">Geospatial Boundary</span>
+                    {selectedMetadata?.geoJsonCid ? (
+                      <ParcelMapViewer 
+                        geoJsonCid={selectedMetadata.geoJsonCid} 
+                        metadata={selectedMetadata}
+                        height="180px"
+                      />
+                    ) : (
+                      <div className="p-4 rounded-xl border border-dashed border-border bg-secondary/10 text-center">
+                        <MapIcon size={20} className="mx-auto text-muted-foreground mb-2 opacity-40" />
+                        <p className="text-[10px] text-muted-foreground italic">No boundary data attached.</p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
                     <span className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2 block font-semibold">Legal Document</span>
                     <a
-                      href={`https://ipfs.io/ipfs/${selectedParcel.ipfsDocument}`}
+                      href={`https://ipfs.io/ipfs/${selectedMetadata?.documentCid || selectedParcel.ipfsDocument}`}
                       target="_blank" rel="noreferrer"
                       className="p-3 rounded-xl bg-primary/5 border border-primary/20 flex items-center justify-between hover:bg-primary/10 transition-all group"
                     >
@@ -242,7 +293,7 @@ export default function VerifierPage() {
                         </div>
                         <div>
                           <p className="text-xs font-bold">Registration Deed</p>
-                          <p className="text-[9px] text-muted-foreground font-mono truncate w-24">{selectedParcel.ipfsDocument}</p>
+                          <p className="text-[9px] text-muted-foreground font-mono truncate w-24">{selectedMetadata?.documentCid || selectedParcel.ipfsDocument}</p>
                         </div>
                       </div>
                       <ExternalLink size={14} className="text-muted-foreground group-hover:text-primary" />
