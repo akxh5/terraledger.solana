@@ -1,0 +1,251 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Instrument+Serif:ital@0;1&family=Playfair+Display:wght@700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 3%;
+    --foreground: 0 0% 100%;
+    --card: 0 0% 6%;
+    --card-foreground: 0 0% 100%;
+    --popover: 0 0% 6%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 160 100% 45%;
+    --primary-foreground: 0 0% 0%;
+    --secondary: 0 0% 12%;
+    --secondary-foreground: 0 0% 80%;
+    --muted: 0 0% 10%;
+    --muted-foreground: 0 0% 60%;
+    --accent: 160 100% 45%;
+    --accent-foreground: 0 0% 0%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 15%;
+    --input: 0 0% 12%;
+    --ring: 160 100% 45%;
+    --radius: 0.75rem;
+    --hero-subtitle: 0 0% 85%;
+    --sidebar-background: 0 0% 5%;
+    --sidebar-foreground: 0 0% 90%;
+    --sidebar-primary: 160 100% 45%;
+    --sidebar-primary-foreground: 0 0% 0%;
+    --sidebar-accent: 0 0% 10%;
+    --sidebar-accent-foreground: 0 0% 90%;
+    --sidebar-border: 0 0% 15%;
+    --sidebar-ring: 160 100% 45%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    /* Native smooth-scroll as a baseline (also helps when JS is off) */
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    /* Prevent layout shift caused by scrollbar appearing/disappearing */
+    overflow-x: hidden;
+  }
+
+  h1, h2, h3, h4 {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-weight: 700;
+  }
+
+  /* Anchor targets clear the fixed navbar (64 px = h-16) */
+  [id] {
+    scroll-margin-top: 72px;
+  }
+}
+
+@layer components {
+  /*
+   * Unified liquid-glass — matches the navbar pill aesthetic.
+   * Soft white tint, hairline border, medium backdrop blur,
+   * subtle inset highlight on the top edge.
+   */
+  .liquid-glass {
+    background: rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    position: relative;
+    transition:
+      background-color 200ms ease,
+      box-shadow 200ms ease,
+      border-color 200ms ease;
+  }
+
+  /* Optional: add this class for the navbar's emerald hover glow */
+  .liquid-glass-hover:hover {
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      0 0 24px rgba(0, 230, 154, 0.25);
+    border-color: rgba(255, 255, 255, 0.15);
+  }
+
+  .glow-primary {
+    box-shadow: 0 0 30px rgba(0, 230, 154, 0.3), 0 0 60px rgba(0, 230, 154, 0.1);
+  }
+
+  .text-gradient-primary {
+    background: linear-gradient(135deg, hsl(160 100% 45%), hsl(160 80% 65%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    /* Prevent descenders/ascenders of italic serif from being clipped by the text bounding box */
+    padding-block: 0.08em;
+    padding-inline: 0.06em;
+    margin-inline: -0.06em;
+    line-height: 1.15;
+    display: inline-block;
+    vertical-align: baseline;
+  }
+
+  .font-serif-italic {
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    /* Italic serif glyphs slant beyond the glyph box — give them breathing room */
+    padding-inline: 0.08em;
+    margin-inline: -0.04em;
+    line-height: 1.15;
+    display: inline-block;
+  }
+
+  .spotlight-card {
+    position: relative;
+    overflow: hidden;
+  }
+  .spotlight-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(
+      400px circle at var(--mx, 50%) var(--my, 50%),
+      hsl(160 100% 45% / 0.15),
+      transparent 40%
+    );
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+  }
+  .spotlight-card:hover::after {
+    opacity: 1;
+  }
+
+  .scan-sweep::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      180deg,
+      transparent 0%,
+      hsl(160 100% 45% / 0.06) 50%,
+      transparent 100%
+    );
+    transform: translateY(-100%);
+    animation: scan-sweep 6s ease-in-out infinite;
+    pointer-events: none;
+  }
+
+  .glitch-text {
+    position: relative;
+    display: inline-block;
+  }
+  .glitch-text::before,
+  .glitch-text::after {
+    content: attr(data-text);
+    position: absolute;
+    inset: 0;
+    background: inherit;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .glitch-text::before {
+    animation: glitch-1 5s infinite;
+    color: hsl(160 100% 45% / 0.8);
+    z-index: -1;
+  }
+  .glitch-text::after {
+    animation: glitch-2 5s infinite;
+    color: hsl(170 90% 55% / 0.8);
+    z-index: -2;
+  }
+}
+
+@layer utilities {
+  @keyframes border-spin {
+    to { --angle: 360deg; }
+  }
+
+  @keyframes scan-sweep {
+    0%, 100% { transform: translateY(-100%); }
+    50% { transform: translateY(100%); }
+  }
+
+  @keyframes particle-float {
+    0% {
+      transform: translateY(0) translateX(0);
+      opacity: 0;
+    }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% {
+      transform: translateY(-100vh) translateX(20px);
+      opacity: 0;
+    }
+  }
+
+  @keyframes pulse-halo {
+    0%, 100% { box-shadow: 0 0 20px hsl(160 100% 45% / 0.3), 0 0 40px hsl(160 100% 45% / 0.1); }
+    50% { box-shadow: 0 0 30px hsl(160 100% 45% / 0.5), 0 0 60px hsl(160 100% 45% / 0.2); }
+  }
+
+  @keyframes glitch-1 {
+    0%, 92%, 100% { clip-path: inset(0 0 0 0); transform: translate(0); }
+    93% { clip-path: inset(20% 0 60% 0); transform: translate(-2px, 1px); }
+    95% { clip-path: inset(60% 0 10% 0); transform: translate(2px, -1px); }
+    97% { clip-path: inset(40% 0 40% 0); transform: translate(-1px, 2px); }
+  }
+
+  @keyframes glitch-2 {
+    0%, 92%, 100% { clip-path: inset(0 0 0 0); transform: translate(0); }
+    93% { clip-path: inset(50% 0 30% 0); transform: translate(2px, -1px); }
+    95% { clip-path: inset(10% 0 70% 0); transform: translate(-2px, 1px); }
+    97% { clip-path: inset(70% 0 10% 0); transform: translate(1px, -2px); }
+  }
+
+  @keyframes shimmer-line {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+
+  .property-angle {
+    --angle: 0deg;
+  }
+
+  @property --angle {
+    syntax: '<angle>';
+    initial-value: 0deg;
+    inherits: false;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .scan-sweep::before,
+    .glitch-text::before,
+    .glitch-text::after {
+      animation: none;
+    }
+  }
+}

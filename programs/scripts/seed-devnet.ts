@@ -20,7 +20,7 @@ async function main() {
     const connection = provider.connection;
     const wallet = (provider.wallet as any).payer as Keypair;
 
-    const idlPath = path.resolve(__dirname, "../../terraledger-genesis-v2/src/lib/anchor/terraledger.json");
+    const idlPath = path.resolve(__dirname, "../../app/src/lib/anchor/terraledger.json");
     const idl = JSON.parse(fs.readFileSync(idlPath, "utf8"));
     const program = new Program(idl, provider);
 

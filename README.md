@@ -4,30 +4,30 @@ TerraLedger is a decentralized infrastructure layer for verifiable land ownershi
 
 ## Project Structure
 
-- `terraledger-programs/`: Anchor-based smart contracts (Rust).
-- `terraledger-genesis-v2/`: React-based frontend dashboard (TypeScript).
+- `programs/`: Anchor-based smart contracts (Rust).
+- `app/`: React-based frontend dashboard (TypeScript).
 - `scripts/`: Automation and synchronization utilities.
 
 ## Development Workflow
 
 To ensure the frontend stays in sync with the smart contract changes, follow this workflow:
 
-1. **Make changes to the Rust program** in `terraledger-programs/`.
+1. **Make changes to the Rust program** in `programs/`.
 2. **Build the programs** to generate the new IDL:
    ```bash
-   cd terraledger-programs
+   cd programs
    anchor build
    ```
 3. **Sync the IDL to the frontend**:
    ```bash
    # From the monorepo root
-   npm run sync:idl --prefix terraledger-genesis-v2
-   # OR from terraledger-genesis-v2/
+   npm run sync:idl --prefix app
+   # OR from app/
    npm run sync:idl
    ```
 4. **Start the frontend**:
    ```bash
-   cd terraledger-genesis-v2
+   cd app
    npm run dev
    ```
    *Note: `npm run dev` and `npm run build` will automatically run the sync script.*
@@ -42,5 +42,5 @@ To ensure the frontend stays in sync with the smart contract changes, follow thi
 
 To manually check if the IDL is in sync:
 ```bash
-npm run validate:idl --prefix terraledger-genesis-v2
+npm run validate:idl --prefix app
 ```

@@ -1,0 +1,817 @@
+{
+  "address": "FXfyLUSeLn8pZrUTPjN7iGqjqRBwLRiHz2XKhnoDriQM",
+  "metadata": {
+    "name": "terraledger",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Created with Anchor"
+  },
+  "instructions": [
+    {
+      "name": "activate_parcel",
+      "discriminator": [
+        213,
+        125,
+        70,
+        160,
+        76,
+        69,
+        251,
+        194
+      ],
+      "accounts": [
+        {
+          "name": "land_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  97,
+                  110,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "land_account.parcel_id",
+                "account": "LandAccount"
+              }
+            ]
+          }
+        },
+        {
+          "name": "verifier",
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "lock_parcel",
+      "discriminator": [
+        80,
+        226,
+        109,
+        20,
+        98,
+        9,
+        167,
+        55
+      ],
+      "accounts": [
+        {
+          "name": "land_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  97,
+                  110,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "land_account.parcel_id",
+                "account": "LandAccount"
+              }
+            ]
+          }
+        },
+        {
+          "name": "multisig"
+        },
+        {
+          "name": "multisig_signer"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "raise_dispute",
+      "discriminator": [
+        41,
+        243,
+        1,
+        51,
+        150,
+        95,
+        246,
+        73
+      ],
+      "accounts": [
+        {
+          "name": "land_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  97,
+                  110,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "land_account.parcel_id",
+                "account": "LandAccount"
+              }
+            ]
+          }
+        },
+        {
+          "name": "signer",
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "register_land",
+      "discriminator": [
+        19,
+        138,
+        95,
+        50,
+        179,
+        68,
+        57,
+        239
+      ],
+      "accounts": [
+        {
+          "name": "land_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  97,
+                  110,
+                  100
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "parcel_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "multisig"
+        },
+        {
+          "name": "multisig_signer"
+        },
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "parcel_id",
+          "type": "string"
+        },
+        {
+          "name": "ipfs_document",
+          "type": "string"
+        },
+        {
+          "name": "initial_stakeholders",
+          "type": {
+            "vec": {
+              "defined": {
+                "name": "Stakeholder"
+              }
+            }
+          }
+        },
+        {
+          "name": "initial_verifiers",
+          "type": {
+            "vec": "pubkey"
+          }
+        },
+        {
+          "name": "dispute_threshold_bps",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "resolve_dispute",
+      "discriminator": [
+        231,
+        6,
+        202,
+        6,
+        96,
+        103,
+        12,
+        230
+      ],
+      "accounts": [
+        {
+          "name": "land_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  97,
+                  110,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "land_account.parcel_id",
+                "account": "LandAccount"
+              }
+            ]
+          }
+        },
+        {
+          "name": "multisig"
+        },
+        {
+          "name": "multisig_signer"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "transfer_authority",
+      "discriminator": [
+        48,
+        169,
+        76,
+        72,
+        229,
+        180,
+        55,
+        161
+      ],
+      "accounts": [
+        {
+          "name": "land_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  97,
+                  110,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "land_account.parcel_id",
+                "account": "LandAccount"
+              }
+            ]
+          }
+        },
+        {
+          "name": "multisig"
+        },
+        {
+          "name": "multisig_signer"
+        }
+      ],
+      "args": [
+        {
+          "name": "new_authority",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "transfer_partial",
+      "discriminator": [
+        83,
+        104,
+        238,
+        3,
+        133,
+        100,
+        33,
+        91
+      ],
+      "accounts": [
+        {
+          "name": "land_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  97,
+                  110,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "land_account.parcel_id",
+                "account": "LandAccount"
+              }
+            ]
+          }
+        },
+        {
+          "name": "signer",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "recipient",
+          "type": "pubkey"
+        },
+        {
+          "name": "shares_bps",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "unlock_parcel",
+      "discriminator": [
+        249,
+        114,
+        60,
+        184,
+        246,
+        105,
+        202,
+        129
+      ],
+      "accounts": [
+        {
+          "name": "land_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  97,
+                  110,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "land_account.parcel_id",
+                "account": "LandAccount"
+              }
+            ]
+          }
+        },
+        {
+          "name": "multisig"
+        },
+        {
+          "name": "multisig_signer"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "update_document",
+      "discriminator": [
+        12,
+        97,
+        6,
+        207,
+        23,
+        19,
+        177,
+        19
+      ],
+      "accounts": [
+        {
+          "name": "land_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  97,
+                  110,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "land_account.parcel_id",
+                "account": "LandAccount"
+              }
+            ]
+          }
+        },
+        {
+          "name": "history_entry",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  104,
+                  105,
+                  115,
+                  116,
+                  111,
+                  114,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "land_account.parcel_id",
+                "account": "LandAccount"
+              },
+              {
+                "kind": "account",
+                "path": "land_account.history_count",
+                "account": "LandAccount"
+              }
+            ]
+          }
+        },
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "verifier",
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "new_ipfs_hash",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "update_verifiers",
+      "discriminator": [
+        139,
+        178,
+        219,
+        154,
+        28,
+        165,
+        17,
+        102
+      ],
+      "accounts": [
+        {
+          "name": "land_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  97,
+                  110,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "land_account.parcel_id",
+                "account": "LandAccount"
+              }
+            ]
+          }
+        },
+        {
+          "name": "multisig"
+        },
+        {
+          "name": "multisig_signer"
+        }
+      ],
+      "args": [
+        {
+          "name": "new_verifiers",
+          "type": {
+            "vec": "pubkey"
+          }
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "HistoryEntry",
+      "discriminator": [
+        14,
+        178,
+        110,
+        12,
+        9,
+        209,
+        227,
+        182
+      ]
+    },
+    {
+      "name": "LandAccount",
+      "discriminator": [
+        22,
+        117,
+        128,
+        89,
+        2,
+        71,
+        202,
+        215
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "ParcelIdTooLong"
+    },
+    {
+      "code": 6001,
+      "name": "IpfsHashTooLong"
+    },
+    {
+      "code": 6002,
+      "name": "InvalidCapTable"
+    },
+    {
+      "code": 6003,
+      "name": "NotAStakeholder"
+    },
+    {
+      "code": 6004,
+      "name": "InsufficientShares"
+    },
+    {
+      "code": 6005,
+      "name": "SharesBelowMinimum"
+    },
+    {
+      "code": 6006,
+      "name": "MaxStakeholdersReached"
+    },
+    {
+      "code": 6007,
+      "name": "Unauthorized"
+    },
+    {
+      "code": 6008,
+      "name": "InvalidVerifier"
+    },
+    {
+      "code": 6009,
+      "name": "VerifierSignatureRequired"
+    },
+    {
+      "code": 6010,
+      "name": "InvalidVerifierList"
+    },
+    {
+      "code": 6011,
+      "name": "InvalidAuthority"
+    },
+    {
+      "code": 6012,
+      "name": "ParcelNotActive"
+    },
+    {
+      "code": 6013,
+      "name": "ParcelNotLocked"
+    },
+    {
+      "code": 6014,
+      "name": "ParcelNotDisputed"
+    },
+    {
+      "code": 6015,
+      "name": "ParcelNotPending"
+    },
+    {
+      "code": 6016,
+      "name": "ParcelIsLocked"
+    },
+    {
+      "code": 6017,
+      "name": "ParcelIsDisputed"
+    },
+    {
+      "code": 6018,
+      "name": "AuthorityTransferBlockedDuringDispute"
+    },
+    {
+      "code": 6019,
+      "name": "VerifierUpdateBlockedDuringDispute"
+    },
+    {
+      "code": 6020,
+      "name": "InsufficientStakeForDispute"
+    },
+    {
+      "code": 6021,
+      "name": "InvalidDisputeThreshold"
+    },
+    {
+      "code": 6022,
+      "name": "InsufficientStakeForDocumentUpdate"
+    },
+    {
+      "code": 6023,
+      "name": "UnauthorizedMultisig"
+    },
+    {
+      "code": 6024,
+      "name": "MultisigApprovalRequired"
+    },
+    {
+      "code": 6025,
+      "name": "InvalidMultisigOwner"
+    },
+    {
+      "code": 6026,
+      "name": "InvalidMultisigThreshold"
+    },
+    {
+      "code": 6027,
+      "name": "InvalidMultisigMembers"
+    },
+    {
+      "code": 6028,
+      "name": "UnauthorizedRegistration"
+    },
+    {
+      "code": 6029,
+      "name": "ArithmeticError"
+    }
+  ],
+  "types": [
+    {
+      "name": "HistoryEntry",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "parcel_id",
+            "type": "string"
+          },
+          {
+            "name": "ipfs_hash",
+            "type": "string"
+          },
+          {
+            "name": "updated_by",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          },
+          {
+            "name": "entry_index",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LandAccount",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "parcel_id",
+            "type": "string"
+          },
+          {
+            "name": "ipfs_document",
+            "type": "string"
+          },
+          {
+            "name": "registered_at",
+            "type": "i64"
+          },
+          {
+            "name": "history_count",
+            "type": "u64"
+          },
+          {
+            "name": "stakeholders",
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "Stakeholder"
+                }
+              }
+            }
+          },
+          {
+            "name": "registrar_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "approved_verifiers",
+            "type": {
+              "vec": "pubkey"
+            }
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "ParcelStatus"
+              }
+            }
+          },
+          {
+            "name": "dispute_threshold_bps",
+            "type": "u16"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ParcelStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "PendingVerification"
+          },
+          {
+            "name": "Active"
+          },
+          {
+            "name": "Locked"
+          },
+          {
+            "name": "Disputed"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Stakeholder",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "shares_bps",
+            "type": "u16"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -43,7 +43,7 @@ This workspace contains the Solana smart contracts for the TerraLedger protocol,
 
 ## Integration with Frontend
 
-The frontend in `terraledger-genesis-v2` expects the IDL and types from this workspace. 
+The frontend in `app` expects the IDL and types from this workspace. 
 
 After making changes to the Rust program, run:
 ```bash

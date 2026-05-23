@@ -4,8 +4,8 @@ const { execSync } = require('child_process');
 
 // Configuration
 const REPO_ROOT = path.resolve(__dirname, '..');
-const PROGRAM_DIR = path.join(REPO_ROOT, 'terraledger-programs');
-const FRONTEND_DIR = path.join(REPO_ROOT, 'terraledger-genesis-v2');
+const PROGRAM_DIR = path.join(REPO_ROOT, 'programs');
+const FRONTEND_DIR = path.join(REPO_ROOT, 'app');
 
 const SOURCE_IDL = path.join(PROGRAM_DIR, 'target/idl/terraledger.json');
 const DEST_JSON = path.join(FRONTEND_DIR, 'src/lib/anchor/terraledger.json');

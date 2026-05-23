@@ -5,7 +5,7 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 
 # Paths
-PROGRAM_DIR="$REPO_ROOT/terraledger-programs"
+PROGRAM_DIR="$REPO_ROOT/programs"
 SOURCE_IDL="$PROGRAM_DIR/target/idl/terraledger.json"
 
 echo "--- IDL Sync (Bash) ---"
