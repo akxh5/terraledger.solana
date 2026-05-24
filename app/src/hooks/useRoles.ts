@@ -35,8 +35,13 @@ export function useRoles() {
 
       setIsAuthorityLoading(true);
       try {
-        const uniqueAuthorities = Array.from(new Set(parcels.map(p => p.registrarAuthority)));
-        
+        const uniqueAuthorities = Array.from(new Set(parcels.filter(p => p.registrarAuthority).map(p => p.registrarAuthority)));
+
+        if (uniqueAuthorities.length === 0) {
+          setAuthorityParcels([]);
+          return;
+        }
+
         const results = await Promise.all(uniqueAuthorities.map(async (authAddr) => {
           try {
             if (!authAddr || authAddr === "11111111111111111111111111111111") return [];
@@ -44,8 +49,8 @@ export function useRoles() {
             const multisigAccount = await multisig.accounts.Multisig.fromAccountAddress(
               connection,
               multisigPda
-            );
-            
+            ).catch(() => null);
+
             if (multisigAccount && Array.isArray(multisigAccount.members)) {
               const isMember = multisigAccount.members.some(m => m.key && m.key.toString() === walletStr);
               if (isMember) {
@@ -61,9 +66,11 @@ export function useRoles() {
         setAuthorityParcels(results.flat());
       } catch (err) {
         console.error("Error checking authority roles:", err);
+        setAuthorityParcels([]);
       } finally {
         setIsAuthorityLoading(false);
       }
+
     };
 
     checkAuthority();

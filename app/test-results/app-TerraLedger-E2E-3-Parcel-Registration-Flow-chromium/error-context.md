@@ -7,21 +7,21 @@
 # Test info
 
 - Name: app.spec.ts >> TerraLedger E2E >> 3. Parcel Registration Flow
-- Location: tests/app.spec.ts:50:3
+- Location: tests/app.spec.ts:49:3
 
 # Error details
 
 ```
 Error: expect(locator).toBeVisible() failed
 
-Locator: locator('#property-registry-header')
+Locator: getByRole('button', { name: /New Registration/i }).first()
 Expected: visible
-Timeout: 30000ms
+Timeout: 45000ms
 Error: element(s) not found
 
 Call log:
-  - Expect "toBeVisible" with timeout 30000ms
-  - waiting for locator('#property-registry-header')
+  - Expect "toBeVisible" with timeout 45000ms
+  - waiting for getByRole('button', { name: /New Registration/i }).first()
 
 ```
 
@@ -49,153 +49,152 @@ Call log:
   19  | 
   20  |   test.beforeAll(async ({ browser }) => {
   21  |     page = await browser.newPage();
-  22  |     page.on('console', msg => console.log(`BROWSER: ${msg.text()}`));
-  23  |     await page.addInitScript(() => {
-  24  |       window.localStorage.setItem('terraledger_tour_seen', 'true');
-  25  |     });
-  26  |   });
-  27  | 
-  28  |   test.afterAll(async () => {
-  29  |     await page.close();
-  30  |   });
-  31  | 
-  32  |   test('1. Landing Page Loads', async () => {
-  33  |     await page.goto('/');
-  34  |     await expect(page.getByText(/TerraLedger/i).first()).toBeVisible({ timeout: 30000 });
-  35  |     const launchAppBtn = page.getByRole('button', { name: /Open Dashboard/i }).first();
-  36  |     await expect(launchAppBtn).toBeVisible({ timeout: 15000 });
-  37  |     await page.screenshot({ path: 'tests/screenshots/1-landing-page.png' });
-  38  |   });
-  39  | 
-  40  |   test('2. Wallet Connection', async () => {
-  41  |     await page.goto('/dashboard');
-  42  |     const connectBtn = page.getByRole('button', { name: /Connect Wallet/i }).first();
-  43  |     await expect(connectBtn).toBeVisible();
-  44  |     await connectWallet(page);
-  45  |     await expect(page.locator('#wallet-connected-btn')).toBeVisible({ timeout: 30000 });
-  46  |     await expect(page.getByText(/8d4A/i).first()).toBeVisible({ timeout: 10000 });
-  47  |     await page.screenshot({ path: 'tests/screenshots/2-wallet-connected.png' });
-  48  |   });
-  49  | 
-  50  |   test('3. Parcel Registration Flow', async () => {
-  51  |     await page.goto('/dashboard');
-  52  |     
-  53  |     // DevWallet state is not persistent across reloads in this mock setup
-  54  |     const connectBtn = page.getByRole('button', { name: /Connect Wallet/i }).first();
-  55  |     if (await connectBtn.isVisible()) {
-  56  |       await connectWallet(page);
-  57  |     }
-  58  | 
-  59  |     // Wait for RoleGuard loading state to disappear
-  60  |     await expect(page.getByText(/Checking your on-chain permissions/i)).not.toBeVisible({ timeout: 30000 });
-  61  |     
-  62  |     // Ensure wallet is connected
-  63  |     await expect(page.locator('#wallet-connected-btn')).toBeVisible({ timeout: 15000 });
-  64  |     
-  65  |     // Navigate to My Parcels tab
-  66  |     await page.getByRole('button', { name: /Register Parcel/i }).first().click();
-  67  |     
-  68  |     // Wait for ParcelsPage to mount
-> 69  |     await expect(page.locator('#property-registry-header')).toBeVisible({ timeout: 30000 });
-      |                                                             ^ Error: expect(locator).toBeVisible() failed
-  70  |     console.log('Registry header visible');
-  71  | 
-  72  |     const registerBtn = page.getByRole('button', { name: /New Registration/i }).first();
-  73  |     await expect(registerBtn).toBeVisible({ timeout: 20000 });
-  74  |     await registerBtn.click();
-  75  |     console.log('Clicked New Registration');
-  76  | 
-  77  |     // Step 1: Map Interaction
-  78  |     const mapElement = page.locator('.leaflet-container');
-  79  |     await expect(mapElement).toBeVisible({ timeout: 20000 });
-  80  |     
-  81  |     // Simulate drawing a polygon
-  82  |     const box = await mapElement.boundingBox();
-  83  |     if (box) {
-  84  |       const centerX = box.x + box.width / 2;
-  85  |       const centerY = box.y + box.height / 2;
-  86  |       
-  87  |       await page.mouse.click(centerX - 50, centerY - 50); // point 1
-  88  |       await page.mouse.click(centerX + 50, centerY - 50); // point 2
-  89  |       await page.mouse.click(centerX + 50, centerY + 50); // point 3
-  90  |       await page.waitForTimeout(500); // Small delay before double click as requested
-  91  |       await page.mouse.dblclick(centerX - 50, centerY - 50); // close
-  92  |     }
-  93  | 
-  94  |     // Assert ParcelInfoCard appears
-  95  |     await expect(page.getByText(/Generated Parcel ID/i)).toBeVisible({ timeout: 10000 });
-  96  |     const generatedId = await page.locator('code').first().textContent();
-  97  |     expect(generatedId).toMatch(/TL-[\d.]+-[\d.]+/);
-  98  | 
-  99  |     await page.getByRole('button', { name: /Confirm Location/i }).click();
-  100 | 
-  101 |     // Step 2: Details & Documents
-  102 |     const createMultisigBtn = page.getByRole('button', { name: /Provision Institutional Multisig/i });
-  103 |     if (await createMultisigBtn.isVisible()) {
-  104 |       await createMultisigBtn.click();
-  105 |       await expect(page.getByText(/Provisioned/i).first()).toBeVisible({ timeout: 45000 });
-  106 |       await page.waitForTimeout(2000);
-  107 |     }
-  108 | 
-  109 |     // Step 3: Registration
-  110 |     await page.getByRole('button', { name: /Continue to Registry/i }).click();
-  111 | 
-  112 |     const fileChooserPromise = page.waitForEvent('filechooser');
-  113 |     await page.locator('input[type="file"]').click();
-  114 |     const fileChooser = await fileChooserPromise;
-  115 |     await fileChooser.setFiles(path.resolve('tests', 'fixtures/dummy.pdf'));
-  116 | 
-  117 |     await page.getByRole('button', { name: /Submit Registry/i }).last().click({ force: true });
-  118 | 
-  119 |     const successToast = page.getByText(/Registered on-chain/i).first();
-  120 |     const errorToast = page.getByText(/Registration Failed/i).first();
-  121 |     const invalidToast = page.getByText(/Invalid Input/i).first();
-  122 |     
-  123 |     await expect(successToast.or(errorToast).or(invalidToast)).toBeVisible({ timeout: 60000 });
-  124 |     
-  125 |     if (await errorToast.isVisible()) {
-  126 |       throw new Error('Transaction failed on-chain');
-  127 |     }
-  128 |     if (await invalidToast.isVisible()) {
-  129 |       throw new Error('Form validation failed: Invalid Input');
-  130 |     }
+  22  |     await page.addInitScript(() => {
+  23  |       window.localStorage.setItem('terraledger_tour_seen', 'true');
+  24  |     });
+  25  |   });
+  26  | 
+  27  |   test.afterAll(async () => {
+  28  |     await page.close();
+  29  |   });
+  30  | 
+  31  |   test('1. Landing Page Loads', async () => {
+  32  |     await page.goto('/');
+  33  |     await expect(page.getByText(/TerraLedger/i).first()).toBeVisible({ timeout: 30000 });
+  34  |     const launchAppBtn = page.getByRole('button', { name: /Open Dashboard/i }).first();
+  35  |     await expect(launchAppBtn).toBeVisible({ timeout: 15000 });
+  36  |     await page.screenshot({ path: 'tests/screenshots/1-landing-page.png' });
+  37  |   });
+  38  | 
+  39  |   test('2. Wallet Connection', async () => {
+  40  |     await page.goto('/dashboard');
+  41  |     const connectBtn = page.getByRole('button', { name: /Connect Wallet/i }).first();
+  42  |     await expect(connectBtn).toBeVisible();
+  43  |     await connectWallet(page);
+  44  |     await expect(page.locator('#wallet-connected-btn')).toBeVisible({ timeout: 30000 });
+  45  |     await expect(page.getByText(/8d4A/i).first()).toBeVisible({ timeout: 10000 });
+  46  |     await page.screenshot({ path: 'tests/screenshots/2-wallet-connected.png' });
+  47  |   });
+  48  | 
+  49  |   test('3. Parcel Registration Flow', async () => {
+  50  |     await page.goto('/dashboard');
+  51  | 
+  52  |     // Wait for RoleGuard loading state to disappear
+  53  |     await expect(page.getByText(/Checking your on-chain permissions/i)).not.toBeVisible({ timeout: 30000 });
+  54  | 
+  55  |     // Ensure wallet is connected
+  56  |     await expect(page.locator('#wallet-connected-btn')).toBeVisible({ timeout: 15000 });
+  57  | 
+  58  |     // Ensure dashboard header is visible
+  59  |     await expect(page.getByText(/Welcome back/i)).toBeVisible({ timeout: 15000 });
+  60  | 
+  61  |     // Navigate to My Parcels tab using the large CTA button on Overview
+  62  |     // This button directly calls setActiveTab('parcels')
+  63  |     const registerParcelBtn = page.getByRole('button', { name: /Register Parcel/i }).first();
+  64  |     await registerParcelBtn.click();
+  65  | 
+  66  |     // Wait for New Registration button to appear in the Parcels view
+  67  |     const registerBtn = page.getByRole('button', { name: /New Registration/i }).first();
+> 68  |     await expect(registerBtn).toBeVisible({ timeout: 45000 });
+      |                               ^ Error: expect(locator).toBeVisible() failed
+  69  |     await registerBtn.click();
+  70  |     console.log('Clicked New Registration');
+  71  |     // Step 1: Map Interaction
+  72  |     const mapElement = page.locator('.leaflet-container');
+  73  |     await expect(mapElement).toBeVisible({ timeout: 20000 });
+  74  |     
+  75  |     // Simulate drawing a polygon
+  76  |     const box = await mapElement.boundingBox();
+  77  |     if (box) {
+  78  |       const centerX = box.x + box.width / 2;
+  79  |       const centerY = box.y + box.height / 2;
+  80  |       
+  81  |       await page.mouse.click(centerX - 50, centerY - 50); // point 1
+  82  |       await page.mouse.click(centerX + 50, centerY - 50); // point 2
+  83  |       await page.mouse.click(centerX + 50, centerY + 50); // point 3
+  84  |       await page.waitForTimeout(500); // Small delay before double click as requested
+  85  |       await page.mouse.dblclick(centerX - 50, centerY - 50); // close
+  86  |     }
+  87  | 
+  88  |     // Assert ParcelInfoCard appears
+  89  |     await expect(page.getByText(/Generated Parcel ID/i)).toBeVisible({ timeout: 10000 });
+  90  |     const generatedId = await page.locator('code').first().textContent();
+  91  |     expect(generatedId).toMatch(/TL-[\d.]+-[\d.]+/);
+  92  | 
+  93  |     await page.getByRole('button', { name: /Confirm Location/i }).click();
+  94  | 
+  95  |     // Step 2: Details & Documents
+  96  |     const createMultisigBtn = page.getByRole('button', { name: /Provision Institutional Multisig/i });
+  97  |     if (await createMultisigBtn.isVisible()) {
+  98  |       await createMultisigBtn.click();
+  99  |       await expect(page.getByText(/Provisioned/i).first()).toBeVisible({ timeout: 45000 });
+  100 |       await page.waitForTimeout(2000);
+  101 |     }
+  102 | 
+  103 |     // Step 3: Registration
+  104 |     await page.getByRole('button', { name: /Continue to Registry/i }).click();
+  105 | 
+  106 |     const fileChooserPromise = page.waitForEvent('filechooser');
+  107 |     await page.locator('input[type="file"]').click();
+  108 |     const fileChooser = await fileChooserPromise;
+  109 |     await fileChooser.setFiles(path.resolve('tests', 'fixtures/dummy.pdf'));
+  110 | 
+  111 |     await page.getByRole('button', { name: /Submit Registry/i }).last().click({ force: true });
+  112 | 
+  113 |     const successToast = page.getByText(/Registered on-chain/i).first();
+  114 |     const errorToast = page.getByText(/Registration Failed/i).first();
+  115 |     const invalidToast = page.getByText(/Invalid Input/i).first();
+  116 |     
+  117 |     await expect(successToast.or(errorToast).or(invalidToast)).toBeVisible({ timeout: 60000 });
+  118 |     
+  119 |     if (await errorToast.isVisible()) {
+  120 |       throw new Error('Transaction failed on-chain');
+  121 |     }
+  122 |     if (await invalidToast.isVisible()) {
+  123 |       throw new Error('Form validation failed: Invalid Input');
+  124 |     }
+  125 | 
+  126 |     await expect(page.getByText(TEST_PARCEL_ID).first().or(page.getByText(/TL-/i).first())).toBeVisible({ timeout: 15000 });
+  127 |     await expect(page.getByText(/PendingVerification/i).first()).toBeVisible();
+  128 | 
+  129 |     await page.screenshot({ path: 'tests/screenshots/3-parcel-registered.png' });
+  130 |   });
   131 | 
-  132 |     await expect(page.getByText(TEST_PARCEL_ID).first().or(page.getByText(/TL-/i).first())).toBeVisible({ timeout: 15000 });
-  133 |     await expect(page.getByText(/PendingVerification/i).first()).toBeVisible();
-  134 | 
-  135 |     await page.screenshot({ path: 'tests/screenshots/3-parcel-registered.png' });
-  136 |   });
+  132 |   test('4. Verifier / Activation Flow', async () => {
+  133 |     await page.goto('/verifier');
+  134 |     const parcelIdText = page.getByText(/TL-/i).first();
+  135 |     await expect(parcelIdText).toBeVisible({ timeout: 20000 });
+  136 |     await parcelIdText.click();
   137 | 
-  138 |   test('4. Verifier / Activation Flow', async () => {
-  139 |     await page.goto('/verifier');
-  140 |     const parcelIdText = page.getByText(/TL-/i).first();
-  141 |     await expect(parcelIdText).toBeVisible({ timeout: 20000 });
-  142 |     await parcelIdText.click();
-  143 | 
-  144 |     const activateBtn = page.getByRole('button', { name: /Activate/i }).first();
-  145 |     await activateBtn.click();
-  146 | 
-  147 |     await expect(page.getByText(/Parcel Activated!/i).first()).toBeVisible({ timeout: 60000 });
-  148 | 
-  149 |     await page.goto('/dashboard');
-  150 |     const parcelsTab = page.locator('#dash-nav-parcels');
-  151 |     if (await parcelsTab.isVisible()) {
-  152 |       await parcelsTab.click();
-  153 |     }
-  154 |     
-  155 |     await expect(page.getByText(/TL-/i).first()).toBeVisible({ timeout: 15000 });
-  156 |     await expect(page.getByText(/Active/i).first()).toBeVisible();
-  157 | 
-  158 |     await page.screenshot({ path: 'tests/screenshots/4-verifier-activated.png' });
-  159 |   });
-  160 | 
-  161 |   test('5. Fractional Transfer Flow', async () => {
-  162 |     const parcelRow = page.getByText(/TL-/i).first();
-  163 |     await expect(parcelRow).toBeVisible({ timeout: 20000 });
-  164 |     await parcelRow.click();
-  165 | 
-  166 |     const transferTabBtn = page.getByRole('button', { name: /Transfer Stake/i }).first();
-  167 |     if (await transferTabBtn.isVisible()) {
-  168 |       await transferTabBtn.click();
-  169 |     }
+  138 |     const activateBtn = page.getByRole('button', { name: /Activate/i }).first();
+  139 |     await activateBtn.click();
+  140 | 
+  141 |     await expect(page.getByText(/Parcel Activated!/i).first()).toBeVisible({ timeout: 60000 });
+  142 | 
+  143 |     await page.goto('/dashboard');
+  144 |     const parcelsTab = page.locator('#dash-nav-parcels');
+  145 |     if (await parcelsTab.isVisible()) {
+  146 |       await parcelsTab.click();
+  147 |     }
+  148 |     
+  149 |     await expect(page.getByText(/TL-/i).first()).toBeVisible({ timeout: 15000 });
+  150 |     await expect(page.getByText(/Active/i).first()).toBeVisible();
+  151 | 
+  152 |     await page.screenshot({ path: 'tests/screenshots/4-verifier-activated.png' });
+  153 |   });
+  154 | 
+  155 |   test('5. Fractional Transfer Flow', async () => {
+  156 |     const parcelRow = page.getByText(/TL-/i).first();
+  157 |     await expect(parcelRow).toBeVisible({ timeout: 20000 });
+  158 |     await parcelRow.click();
+  159 | 
+  160 |     const transferTabBtn = page.getByRole('button', { name: /Transfer Stake/i }).first();
+  161 |     if (await transferTabBtn.isVisible()) {
+  162 |       await transferTabBtn.click();
+  163 |     }
+  164 | 
+  165 |     await page.getByPlaceholder(/Recipient/i).fill('So11111111111111111111111111111111111111112');
+  166 | 
+  167 |     const signTransferBtn = page.getByRole('button', { name: /Sign Transfer/i });
+  168 |     await signTransferBtn.click();
 ```

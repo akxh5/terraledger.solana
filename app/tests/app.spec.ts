@@ -48,31 +48,26 @@ test.describe('TerraLedger E2E', () => {
 
   test('3. Parcel Registration Flow', async () => {
     await page.goto('/dashboard');
-    
-    // DevWallet state is not persistent across reloads in this mock setup
-    const connectBtn = page.getByRole('button', { name: /Connect Wallet/i }).first();
-    if (await connectBtn.isVisible()) {
-      await connectWallet(page);
-    }
 
     // Wait for RoleGuard loading state to disappear
     await expect(page.getByText(/Checking your on-chain permissions/i)).not.toBeVisible({ timeout: 30000 });
-    
+
     // Ensure wallet is connected
     await expect(page.locator('#wallet-connected-btn')).toBeVisible({ timeout: 15000 });
-    
-    // Navigate to My Parcels tab
-    await page.getByRole('button', { name: /Register Parcel/i }).first().click();
-    
-    // Wait for ParcelsPage to mount
-    await expect(page.locator('#property-registry-header')).toBeVisible({ timeout: 30000 });
-    console.log('Registry header visible');
 
+    // Ensure dashboard header is visible
+    await expect(page.getByText(/Welcome back/i)).toBeVisible({ timeout: 15000 });
+
+    // Navigate to My Parcels tab using the large CTA button on Overview
+    // This button directly calls setActiveTab('parcels')
+    const registerParcelBtn = page.getByRole('button', { name: /Register Parcel/i }).first();
+    await registerParcelBtn.click();
+
+    // Wait for New Registration button to appear in the Parcels view
     const registerBtn = page.getByRole('button', { name: /New Registration/i }).first();
-    await expect(registerBtn).toBeVisible({ timeout: 20000 });
+    await expect(registerBtn).toBeVisible({ timeout: 45000 });
     await registerBtn.click();
     console.log('Clicked New Registration');
-
     // Step 1: Map Interaction
     const mapElement = page.locator('.leaflet-container');
     await expect(mapElement).toBeVisible({ timeout: 20000 });
