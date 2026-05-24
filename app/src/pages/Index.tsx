@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useRoles, Role } from "@/hooks/useRoles";
@@ -14,20 +14,37 @@ import { SmoothScroller } from "@/components/SmoothScroller";
 import { motion, AnimatePresence } from "framer-motion";
 import { ShieldCheck, Users, Gavel, ArrowRight, Loader2, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useWalletModal } from "@/hooks/useWalletModal";
 
 const Index = () => {
   const { connected } = useWallet();
+  const { openModal } = useWalletModal();
   const { roles, isLoading, isOwner, isVerifier, isAuthority } = useRoles();
   const navigate = useNavigate();
   const [showRoleSelection, setShowRoleSelection] = useState(false);
+  const [isEnteringApp, setIsEnteringApp] = useState(false);
+
+  const handleOpenDashboard = useCallback(() => {
+    if (!connected) {
+      openModal();
+      return;
+    }
+    setIsEnteringApp(true);
+  }, [connected, openModal]);
 
   useEffect(() => {
-    if (connected && !isLoading) {
+    if (connected && isEnteringApp && !isLoading) {
       if (roles.length > 1) {
         setShowRoleSelection(true);
+      } else if (roles.length === 1) {
+        const target = roles[0] === 'owner' ? '/dashboard' : `/${roles[0]}`;
+        navigate(target);
+      } else {
+        // No roles -> redirect to dashboard (empty state)
+        navigate('/dashboard');
       }
     }
-  }, [connected, isLoading, roles]);
+  }, [connected, isEnteringApp, isLoading, roles, navigate]);
 
   const roleCards = [
     {
@@ -71,7 +88,7 @@ const Index = () => {
         <Navbar />
         
         <AnimatePresence>
-          {connected && isLoading && (
+          {connected && isEnteringApp && isLoading && (
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -81,27 +98,6 @@ const Index = () => {
               <Loader2 className="animate-spin text-primary mb-4" size={40} />
               <h2 className="text-xl font-bold mb-2">Checking your access...</h2>
               <p className="text-muted-foreground">Deriving roles from on-chain state</p>
-            </motion.div>
-          )}
-
-          {connected && !isLoading && roles.length === 0 && (
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="max-w-xl mx-auto mt-24 mb-12 p-8 liquid-glass rounded-2xl border border-white/10 text-center"
-            >
-              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6">
-                <Info className="text-primary" size={32} />
-              </div>
-              <h2 className="text-2xl font-bold mb-4">No parcels yet</h2>
-              <p className="text-muted-foreground mb-8 leading-relaxed">
-                You don't have any land parcels associated with this wallet yet. 
-                Register your first parcel to become an owner.
-              </p>
-              <Button size="lg" onClick={() => navigate('/dashboard')} className="gap-2 px-8">
-                Register My First Parcel
-                <ArrowRight size={18} />
-              </Button>
             </motion.div>
           )}
 
@@ -138,7 +134,14 @@ const Index = () => {
                       <p className="text-sm text-muted-foreground leading-relaxed mb-8 flex-1">
                         {card.description}
                       </p>
-                      <Button variant="outline" className={`w-full gap-2 ${card.border} hover:${card.bg}`}>
+                      <Button 
+                        variant="outline" 
+                        className={`w-full gap-2 ${card.border} hover:${card.bg}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(card.path);
+                        }}
+                      >
                         Enter Portal <ArrowRight size={16} />
                       </Button>
                     </motion.div>
@@ -146,7 +149,10 @@ const Index = () => {
                 </div>
                 
                 <div className="mt-12 text-center">
-                  <Button variant="ghost" onClick={() => setShowRoleSelection(false)}>
+                  <Button variant="ghost" onClick={() => {
+                    setShowRoleSelection(false);
+                    setIsEnteringApp(false);
+                  }}>
                     View Landing Page
                   </Button>
                 </div>
@@ -155,7 +161,7 @@ const Index = () => {
           )}
         </AnimatePresence>
 
-        <HeroSection />
+        <HeroSection onOpenDashboard={handleOpenDashboard} />
         <ProblemSection />
         <SystemSection />
         <ActivitySection />

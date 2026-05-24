@@ -5,7 +5,11 @@ import { fadeUp } from "@/lib/animations";
 import NetworkBackground from "@/components/NetworkBackground";
 import { ArrowRight, Play } from "lucide-react";
 
-const HeroSection = () => {
+interface HeroSectionProps {
+  onOpenDashboard: () => void;
+}
+
+const HeroSection = ({ onOpenDashboard }: HeroSectionProps) => {
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
       <NetworkBackground />
@@ -47,12 +51,14 @@ const HeroSection = () => {
           {...fadeUp(0.45)}
           className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 sm:gap-4 max-w-sm sm:max-w-none mx-auto"
         >
-          <Link to="/dashboard" className="w-full sm:w-auto">
-            <Button size="lg" className="w-full sm:w-auto h-12 px-8 text-sm font-semibold rounded-xl gap-2 bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-[0_0_30px_rgba(0,230,154,0.3)] transition-all duration-300">
-              Open Dashboard
-              <ArrowRight size={16} />
-            </Button>
-          </Link>
+          <Button 
+            size="lg" 
+            onClick={onOpenDashboard}
+            className="w-full sm:w-auto h-12 px-8 text-sm font-semibold rounded-xl gap-2 bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-[0_0_30px_rgba(0,230,154,0.3)] transition-all duration-300"
+          >
+            Open Dashboard
+            <ArrowRight size={16} />
+          </Button>
           <Button
             variant="outline"
             size="lg"

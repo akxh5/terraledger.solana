@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { MapIcon, Loader2 } from 'lucide-react';
+import { Map as MapIcon, Loader2 } from 'lucide-react';
 
 interface ParcelThumbnailProps {
   ipfsCid: string;
