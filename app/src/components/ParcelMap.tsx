@@ -75,7 +75,9 @@ const ParcelMap: React.FC<ParcelMapProps> = ({
       draw: {
         polygon: {
           allowIntersection: false,
-          showArea: true,
+          showArea: false, // Option A: Disable to avoid readableArea call
+          showLength: false,
+          metric: false,
           drawError: {
             color: '#e1e100',
             message: '<strong>Error:</strong> Polygon edges cannot cross!'
@@ -107,7 +109,13 @@ const ParcelMap: React.FC<ParcelMapProps> = ({
     // We only show the tooltip when the map is focused and no polygon is drawn
     const updateTooltip = () => {
       if (drawnItems.current.getLayers().length > 0) {
-        map.closeTooltip();
+        if (map) {
+          try {
+            map.closeTooltip();
+          } catch (e) {
+            // Silently fail if tooltip closing fails
+          }
+        }
       } else {
         // Position it roughly in the center of the view
         tooltip.setLatLng(map.getCenter());

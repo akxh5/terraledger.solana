@@ -15,10 +15,12 @@ export function useTerraledger() {
     }
 
     // Fallback: Read-only provider for walletless mode
-    const connection = new Connection(
-      import.meta.env.VITE_RPC_ENDPOINT || "https://api.devnet.solana.com",
-      "confirmed"
-    );
+    const HELIUS_KEY = import.meta.env.VITE_HELIUS_API_KEY;
+    const rpcEndpoint = HELIUS_KEY
+      ? `https://devnet.helius-rpc.com/?api-key=${HELIUS_KEY}`
+      : (import.meta.env.VITE_RPC_ENDPOINT || "https://api.devnet.solana.com");
+
+    const connection = new Connection(rpcEndpoint, "confirmed");
     
     // Create a dummy provider that only supports read operations
     const readOnlyProvider = new AnchorProvider(
