@@ -7,7 +7,7 @@
     "dev": "vite",
     "sync:idl": "node ../scripts/sync-idl.js",
     "validate:idl": "node ../scripts/validate-idl-sync.js",
-    "prebuild": "node ../scripts/sync-idl.js",
+    "prebuild": "node ../scripts/sync-idl.js --skip-anchor-build",
     "predev": "node ../scripts/sync-idl.js",
     "build": "vite build",
     "build:dev": "vite build --mode development",

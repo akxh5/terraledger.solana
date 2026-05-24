@@ -11,11 +11,18 @@ const SOURCE_IDL = path.join(PROGRAM_DIR, 'target/idl/terraledger.json');
 const DEST_JSON = path.join(FRONTEND_DIR, 'src/lib/anchor/terraledger.json');
 const DEST_TS = path.join(FRONTEND_DIR, 'src/lib/anchor/terraledger.ts');
 
+const args = process.argv.slice(2);
+const skipAnchorBuild = args.includes('--skip-anchor-build');
+
 function sync() {
     console.log('--- IDL Sync ---');
 
     // 1. Check if source IDL exists, if not build it
     if (!fs.existsSync(SOURCE_IDL)) {
+        if (skipAnchorBuild) {
+            console.warn('⚠️ Source IDL not found and --skip-anchor-build is set. Skipping sync.');
+            return;
+        }
         console.log('Source IDL not found. Running anchor build...');
         try {
             execSync('anchor build', { cwd: PROGRAM_DIR, stdio: 'inherit' });
