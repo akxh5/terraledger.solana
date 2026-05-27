@@ -68,11 +68,34 @@ export default function AuthorityPage() {
     authorityParcels.forEach(p => groups[p.status].push(p));
     return groups;
   }, [authorityParcels]);
+const handleGovernanceAction = async (action: 'lock' | 'unlock' | 'resolve') => {
+  if (!program || !selectedParcel || !publicKey) return;
 
-  const handleGovernanceAction = async (action: 'lock' | 'unlock' | 'resolve') => {
-    if (!program || !selectedParcel || !publicKey) return;
-
+  // DEMO ONLY: Bypass Squads flow for DevWallet and simulate success
+  const DEV_WALLET_PUBKEY = '8d4AWN8TmG76FUsEzJWmNPvM8PiwGckaDKKZVEnesEyp';
+  if (publicKey.toString() === DEV_WALLET_PUBKEY) {
     setIsActionPending(true);
+
+    // Simulate network delay
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    toast({ 
+      title: "Demo Mode: Governance simulation", 
+      description: (
+        <div className="space-y-2">
+          <p className="text-emerald-400 font-bold">Action Simulated Successfully!</p>
+          <p className="text-[10px] opacity-70 italic">In production, this would create a Squads V4 multisig proposal. For this demo, we bypass the transaction to ensure stability.</p>
+        </div>
+      ) as any
+    });
+
+    setIsActionPending(false);
+    setActionReason("");
+    setSelectedParcel(null); // Clear selection to "complete" the flow visually
+    return;
+  }
+
+  setIsActionPending(true);
     try {
       const multisigPda = new anchor.web3.PublicKey(selectedParcel.registrarAuthority);
       const [vaultPda] = anchor.web3.PublicKey.findProgramAddressSync(
@@ -317,6 +340,7 @@ export default function AuthorityPage() {
                          <Button 
                            variant="outline"
                            className="w-full gap-2 text-xs font-bold border-emerald-500/30 text-emerald-400"
+                           onClick={() => handleGovernanceAction('unlock')}
                            disabled={isActionPending}
                          >
                            <Unlock size={14} /> Propose Unlock
