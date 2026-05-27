@@ -11,10 +11,16 @@ interface RoleGuardProps {
 }
 
 export function RoleGuard({ children, role }: RoleGuardProps) {
-  const { connected } = useWallet();
+  const { connected, publicKey } = useWallet();
   const { openModal } = useWalletModal();
   const rolesData = useRoles();
   const { roles, isLoading } = rolesData;
+
+  // DEMO ONLY: Allow DevWallet to bypass all role checks
+  const DEV_WALLET_PUBKEY = '8d4AWN8TmG76FUsEzJWmNPvM8PiwGckaDKKZVEnesEyp';
+  if (publicKey?.toString() === DEV_WALLET_PUBKEY) {
+    return <>{children}</>;
+  }
 
   const memoizedChildren = React.useMemo(() => children, [children]);
 

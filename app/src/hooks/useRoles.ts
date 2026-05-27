@@ -119,17 +119,25 @@ export function useRoles() {
   }, [parcels, walletStr, publicKey, connection, toast]);
 
   const roles = useMemo(() => {
+    // DEMO ONLY: DevWallet has all roles
+    const DEV_WALLET_PUBKEY = '8d4AWN8TmG76FUsEzJWmNPvM8PiwGckaDKKZVEnesEyp';
+    if (walletStr === DEV_WALLET_PUBKEY) {
+      return ['owner', 'verifier', 'authority'] as Role[];
+    }
+
     const r: Role[] = [];
     if (ownedParcels.length > 0) r.push('owner');
     if (verifierParcels.length > 0) r.push('verifier');
     if (authorityParcels.length > 0) r.push('authority');
     return r;
-  }, [ownedParcels, verifierParcels, authorityParcels]);
+  }, [ownedParcels, verifierParcels, authorityParcels, walletStr]);
+
+  const isDevWallet = walletStr === '8d4AWN8TmG76FUsEzJWmNPvM8PiwGckaDKKZVEnesEyp';
 
   return {
-    isOwner: ownedParcels.length > 0,
-    isVerifier: verifierParcels.length > 0,
-    isAuthority: authorityParcels.length > 0,
+    isOwner: isDevWallet || ownedParcels.length > 0,
+    isVerifier: isDevWallet || verifierParcels.length > 0,
+    isAuthority: isDevWallet || authorityParcels.length > 0,
     isLoading: isParcelsLoading || isAuthorityLoading,
     roles,
     ownedParcels,
