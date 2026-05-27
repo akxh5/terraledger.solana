@@ -87,6 +87,11 @@ const handleGovernanceAction = async (action: 'lock' | 'unlock' | 'resolve') => 
     // Simulate network delay
     await new Promise(resolve => setTimeout(resolve, 1500));
 
+    // Optimistic Update for UI simulation
+    const nextStatus: Parcel["status"] = action === 'lock' ? 'Locked' : 'Active';
+    const updatedParcel = { ...selectedParcel, status: nextStatus };
+    setSelectedParcel(updatedParcel);
+
     toast({ 
       title: "Demo Mode: Governance simulation", 
       description: (
@@ -99,7 +104,9 @@ const handleGovernanceAction = async (action: 'lock' | 'unlock' | 'resolve') => 
 
     setIsActionPending(false);
     setActionReason("");
-    setSelectedParcel(null); // Clear selection to "complete" the flow visually
+    
+    // Refresh background data
+    setTimeout(() => refreshParcels(), 2000);
     return;
   }
 
@@ -127,6 +134,14 @@ const handleGovernanceAction = async (action: 'lock' | 'unlock' | 'resolve') => 
           .instruction();
       } else if (action === 'resolve') {
         ix = await program.methods.resolveDispute()
+          .accounts({
+            landAccount: new anchor.web3.PublicKey(selectedParcel.pda),
+            multisig: multisigPda,
+            multisigSigner: vaultPda,
+          } as any)
+          .instruction();
+      } else if (action === 'unlock') {
+        ix = await program.methods.unlockParcel()
           .accounts({
             landAccount: new anchor.web3.PublicKey(selectedParcel.pda),
             multisig: multisigPda,

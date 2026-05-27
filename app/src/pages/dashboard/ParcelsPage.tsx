@@ -833,8 +833,19 @@ export default function ParcelsPage() {
                   <div className="grid grid-cols-1 gap-2">
                     {selected.status === "PendingVerification" && isVerifier && <Button size="sm" className="w-full h-8" onClick={handleActivateParcel} disabled={isActivating}>Activate (Verifier)</Button>}
                     {selected.status === "Active" && <Button variant="outline" size="sm" onClick={handleLockParcel} disabled={isPrivilegedActionPending}>Lock Parcel</Button>}
-                    {selected.status === "Disputed" && <Button variant="outline" size="sm" onClick={handleResolveDispute} disabled={isPrivilegedActionPending}>Resolve Dispute</Button>}
                     {currentUserStake >= selected.disputeThresholdBps && selected.status === "Active" && <Button variant="outline" size="sm" onClick={() => setIsDisputeModalOpen(true)}>Raise Dispute</Button>}
+                    {selected.status === "Disputed" && (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => toast({ 
+                          title: "Authority Required", 
+                          description: "Dispute resolution requires governance authority approval. Visit the Authority panel to resolve." 
+                        })}
+                      >
+                        Resolve Dispute
+                      </Button>
+                    )}
                   </div>
               )}
             </div>
