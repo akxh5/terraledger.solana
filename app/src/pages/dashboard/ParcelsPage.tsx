@@ -125,6 +125,13 @@ export default function ParcelsPage() {
 
   const isReadOnly = !publicKey;
 
+  const currentUserStake = useMemo(() => {
+    if (!selected || !publicKey) return 0;
+    return selected.stakeholders.find(s => s.owner === publicKey.toString())?.sharesBps ?? 0;
+  }, [selected, publicKey]);
+
+  const isVerifier = roles.includes('verifier');
+
   // Demo pre-fill
   useEffect(() => {
     if (isDemo && isRegisterModalOpen && !newParcelId) {
