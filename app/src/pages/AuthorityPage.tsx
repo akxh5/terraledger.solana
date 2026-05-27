@@ -57,6 +57,13 @@ export default function AuthorityPage() {
   const [selectedParcel, setSelectedParcel] = useState<Parcel | null>(null);
   const [isActionPending, setIsActionPending] = useState(false);
   const [actionReason, setActionReason] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredAuthorityParcels = useMemo(() => {
+    return authorityParcels.filter(p => 
+      p.parcelId.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [authorityParcels, searchQuery]);
 
   const groupedParcels = useMemo(() => {
     const groups: Record<Parcel["status"], Parcel[]> = {
@@ -65,9 +72,9 @@ export default function AuthorityPage() {
       Locked: [],
       Disputed: [],
     };
-    authorityParcels.forEach(p => groups[p.status].push(p));
+    filteredAuthorityParcels.forEach(p => groups[p.status].push(p));
     return groups;
-  }, [authorityParcels]);
+  }, [filteredAuthorityParcels]);
 const handleGovernanceAction = async (action: 'lock' | 'unlock' | 'resolve') => {
   if (!program || !selectedParcel || !publicKey) return;
 
@@ -201,8 +208,23 @@ const handleGovernanceAction = async (action: 'lock' | 'unlock' | 'resolve') => 
           {/* Parcel Overview Panel */}
           <div className="lg:col-span-2 space-y-8">
             <div>
-               <h2 className="text-2xl font-bold tracking-tight mb-2">Governed Registry</h2>
-               <p className="text-sm text-muted-foreground mb-6">Parcels secured by your registrar multisig authority.</p>
+               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                 <div>
+                   <h2 className="text-2xl font-bold tracking-tight mb-2">Governed Registry</h2>
+                   <p className="text-sm text-muted-foreground">Parcels secured by your registrar multisig authority.</p>
+                 </div>
+                 <div className="relative w-full md:w-64">
+                   <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-muted-foreground/50">
+                     <Search size={14} />
+                   </div>
+                   <Input 
+                     placeholder="Search parcels..." 
+                     className="pl-9 bg-white/[0.03] border-white/10 h-10 text-xs"
+                     value={searchQuery}
+                     onChange={(e) => setSearchQuery(e.target.value)}
+                   />
+                 </div>
+               </div>
 
                <div className="space-y-6">
                  {(['Disputed', 'Locked', 'Active', 'PendingVerification'] as const).map(status => {
@@ -233,7 +255,7 @@ const handleGovernanceAction = async (action: 'lock' | 'unlock' | 'resolve') => 
                                  {p.status === 'PendingVerification' && <Clock className="text-yellow-400" size={18} />}
                                </div>
                                <div>
-                                 <p className="text-sm font-mono font-bold">{p.parcelId}</p>
+                                 <p className="text-base font-mono font-bold text-foreground">{p.parcelId}</p>
                                  <p className="text-[10px] text-muted-foreground">{p.stakeholders.length} Stakeholders · Registered {p.registeredAt}</p>
                                </div>
                              </div>

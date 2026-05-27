@@ -720,7 +720,7 @@ export default function ParcelsPage() {
                 ) : filtered.length === 0 ? <tr><td colSpan={3} className="px-5 py-10 text-center text-sm text-muted-foreground italic">No parcels found.</td></tr> : (
                   filtered.map((parcel) => (
                     <tr key={parcel.pda} onClick={() => setSelected(parcel)} className={`border-b border-border/20 hover:bg-white/[0.03] cursor-pointer ${selected?.pda === parcel.pda ? "bg-primary/5" : ""}`}>
-                      <td className="px-5 py-3 font-mono text-sm">{parcel.parcelId}</td>
+                      <td className="px-5 py-3 font-mono text-base font-bold text-primary/90">{parcel.parcelId}</td>
                       <td className="px-5 py-3"><Badge className={cn("text-[9px] uppercase tracking-wider h-5", STATUS_COLORS[parcel.status])}>{parcel.status}</Badge></td>
                       <td className="px-5 py-3 text-right"><button className="text-xs text-primary font-semibold">Audit</button></td>
                     </tr>

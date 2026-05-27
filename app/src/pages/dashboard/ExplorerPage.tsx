@@ -130,7 +130,7 @@ export default function ExplorerPage() {
                         i % 2 === 1 ? "bg-white/[0.01]" : ""
                       )}
                     >
-                      <td className="px-5 py-4 font-mono text-sm font-medium text-primary/90">{parcel.parcelId}</td>
+                      <td className="px-5 py-4 font-mono text-base font-bold text-primary/90">{parcel.parcelId}</td>
                       <td className="px-5 py-4">
                         <Badge className={cn("text-[9px] uppercase tracking-wider h-5", STATUS_COLORS[parcel.status])}>
                           {parcel.status.replace(/([A-Z])/g, ' $1').trim()}

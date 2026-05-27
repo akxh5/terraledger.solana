@@ -189,7 +189,7 @@ export default function VerifierPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
-                          <p className="text-sm font-mono font-bold truncate">{parcel.parcelId}</p>
+                          <p className="text-base font-mono font-bold">{parcel.parcelId}</p>
                           <Badge variant="outline" className="text-[9px] bg-yellow-400/10 text-yellow-400 border-yellow-400/20 whitespace-nowrap">
                             Pending
                           </Badge>
