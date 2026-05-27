@@ -38,9 +38,35 @@ To ensure the frontend stays in sync with the smart contract changes, follow thi
 - **Validation:** A pre-commit hook runs `scripts/validate-idl-sync.js` to ensure that the committed IDL in the frontend matches the one in the programs folder.
 - **Manual Sync:** If you ever need to manually sync, run `node scripts/sync-idl.js` from the root or `npm run sync:idl` in the frontend folder.
 
-## Verification
+## Demo Recording Checklist
 
-To manually check if the IDL is in sync:
-```bash
-npm run validate:idl --prefix app
-```
+Follow these steps to ensure a perfect one-take demo:
+
+1. **Pre-warm the Environment**:
+   ```bash
+   bash scripts/prewarm.sh
+   ```
+   Confirm all checks are green (✓).
+
+2. **Seed Demo State**:
+   ```bash
+   # Ensure you have ts-node installed
+   npx ts-node scripts/seed-demo.ts
+   ```
+   Confirm 2 parcels are seeded (New Delhi and Hyderabad).
+
+3. **Browser Setup**:
+   - Open `terraledger-solana.vercel.app` in a clean Chrome profile.
+   - Set browser zoom to **110%**.
+   - Connect the Demo Wallet (Phantom) using the seed phrase: 
+     `terraledger demo wallet seed phrase for recording`
+   - Activate **DEMO MODE** by typing `Ctrl + Shift + D` (or `Cmd + Shift + D`).
+
+4. **Verification**:
+   - Confirm **New Delhi** parcel shows as **Active** in the dashboard.
+   - Confirm **Hyderabad** parcel shows in the **Verifier** queue.
+   - Verify that the **Aadhaar Linked (Demo)** badge is visible.
+
+5. **Record**:
+   - Hit record and follow the demo script.
+   - Do not deviate from the pre-seeded flow for maximum stability.

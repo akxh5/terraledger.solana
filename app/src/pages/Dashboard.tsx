@@ -42,7 +42,9 @@ import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Label } from "@/components/ui/label";
+import { useDemoMode } from "@/components/DemoMode";
 
 type Tab = "overview" | "parcels" | "explorer" | "docs";
 
@@ -54,6 +56,7 @@ const navItems: { label: string; tab: Tab; icon: React.ElementType }[] = [
 ];
 
 const Dashboard = () => {
+  const isDemo = useDemoMode();
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const { connected, publicKey } = useWallet();
   const { openModal } = useWalletModal();
@@ -208,10 +211,10 @@ const Dashboard = () => {
                     <p className="text-[9px] text-muted-foreground uppercase tracking-widest mb-1">Connected Wallet</p>
                     <p className="text-xs font-mono font-bold truncate">{publicKey?.toString() || "Not connected"}</p>
                   </div>
-                  {aadhaarHash ? (
+                  {isDemo || aadhaarHash ? (
                     <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
-                      <p className="text-[9px] text-emerald-400 uppercase tracking-widest mb-1 font-bold flex items-center gap-1"><CheckCircle2 size={10} /> Aadhaar Verified</p>
-                      <p className="text-[10px] text-muted-foreground font-mono truncate">{aadhaarHash}</p>
+                      <p className="text-[9px] text-emerald-400 uppercase tracking-widest mb-1 font-bold flex items-center gap-1"><CheckCircle2 size={10} /> {isDemo ? "Aadhaar Linked (Demo)" : "Aadhaar Verified"}</p>
+                      <p className="text-[10px] text-muted-foreground font-mono truncate">{isDemo ? "0xDEMO_HASH_VALIDATED" : aadhaarHash}</p>
                     </div>
                   ) : (
                     <Button variant="outline" className="w-full h-12 gap-2 font-bold text-xs" onClick={() => setIsAadhaarModalOpen(true)} disabled={!connected}>
@@ -228,7 +231,7 @@ const Dashboard = () => {
                   <div className="flex items-start justify-between mb-4">
                     <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center"><stat.icon className="text-primary" size={17} /></div>
                   </div>
-                  <p className="text-3xl font-bold tracking-tight tabular-nums">{parcelsLoading ? "..." : <CountUp value={stat.value} />}</p>
+                  <p className="text-3xl font-bold tracking-tight tabular-nums">{parcelsLoading ? <Skeleton className="h-9 w-24 bg-white/5" /> : <CountUp value={stat.value} />}</p>
                   <p className="text-[11px] text-muted-foreground uppercase tracking-wider mt-2">{stat.label}</p>
                 </motion.div>
               ))}

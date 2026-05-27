@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "target": "es2020",
+    "module": "commonjs",
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["app/src/*"],
+      "@coral-xyz/anchor": ["app/node_modules/@coral-xyz/anchor"],
+      "@solana/web3.js": ["app/node_modules/@solana/web3.js"],
+      "@sqds/multisig": ["app/node_modules/@sqds/multisig"]
+    }
+  }
+}

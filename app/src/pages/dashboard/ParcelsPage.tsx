@@ -29,6 +29,7 @@ import {
   Map as MapIcon,
   MapPin,
 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useTerraledger } from "@/hooks/useTerraledger";
@@ -66,7 +67,10 @@ const STATUS_COLORS = {
   Disputed: "text-orange-500 bg-orange-500/10 border border-orange-500/20",
 };
 
+import { useDemoMode } from "@/components/DemoMode";
+
 export default function ParcelsPage() {
+  const isDemo = useDemoMode();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"All" | "Active" | "PendingVerification" | "Disputed" | "Locked">("All");
   const [selected, setSelected] = useState<Parcel | null>(null);
@@ -120,6 +124,15 @@ export default function ParcelsPage() {
   const { executePrivilegedInstruction, createRegistrarMultisig } = useSquads();
 
   const isReadOnly = !publicKey;
+
+  // Demo pre-fill
+  useEffect(() => {
+    if (isDemo && isRegisterModalOpen && !newParcelId) {
+      setNewParcelId(`TL-${(Math.random() * 10).toFixed(6)}-${(Math.random() * 10).toFixed(6)}`);
+      setNewIpfsDocument("QmDemoHashPreFilledForRecording");
+      setIsManualId(true);
+    }
+  }, [isDemo, isRegisterModalOpen, newParcelId]);
 
   // Real-time: subscribe to selected parcel PDA via onAccountChange
   useEffect(() => {
@@ -694,7 +707,17 @@ export default function ParcelsPage() {
             <table className="w-full">
               <thead><tr className="border-b border-border/30 bg-white/[0.02]"><th className="text-left text-xs font-medium text-muted-foreground px-5 py-3">Parcel ID</th><th className="text-left text-xs font-medium text-muted-foreground px-5 py-3">Status</th><th className="text-right text-xs font-medium text-muted-foreground px-5 py-3">Actions</th></tr></thead>
               <tbody>
-                {isLoading ? <tr><td colSpan={3} className="px-5 py-10 text-center text-sm text-muted-foreground">Syncing...</td></tr> : filtered.length === 0 ? <tr><td colSpan={3} className="px-5 py-10 text-center text-sm text-muted-foreground italic">No parcels found.</td></tr> : (
+                {isLoading ? (
+                  <>
+                    {[1, 2, 3].map((i) => (
+                      <tr key={i} className="border-b border-white/5">
+                        <td className="px-5 py-4"><Skeleton className="h-4 w-32 bg-white/5" /></td>
+                        <td className="px-5 py-4"><Skeleton className="h-4 w-24 bg-white/5 rounded-full" /></td>
+                        <td className="px-5 py-4 flex justify-end"><Skeleton className="h-8 w-20 bg-white/5 rounded-md" /></td>
+                      </tr>
+                    ))}
+                  </>
+                ) : filtered.length === 0 ? <tr><td colSpan={3} className="px-5 py-10 text-center text-sm text-muted-foreground italic">No parcels found.</td></tr> : (
                   filtered.map((parcel) => (
                     <tr key={parcel.pda} onClick={() => setSelected(parcel)} className={`border-b border-border/20 hover:bg-white/[0.03] cursor-pointer ${selected?.pda === parcel.pda ? "bg-primary/5" : ""}`}>
                       <td className="px-5 py-3 font-mono text-sm">{parcel.parcelId}</td>

@@ -5,6 +5,7 @@ import { Loader2, AlertCircle, Maximize2, Map as MapIcon, Ruler, Info } from 'lu
 import { Card, CardContent } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface ParcelMapViewerProps {
   geoJsonCid: string;
@@ -89,9 +90,12 @@ const ParcelMapViewer: React.FC<ParcelMapViewerProps> = ({
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center bg-secondary/20 rounded-lg border border-border" style={{ height }}>
-        <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
-        <p className="text-xs text-muted-foreground">Loading boundary data...</p>
+      <div className="relative overflow-hidden rounded-lg border border-border/50 bg-secondary/5" style={{ height }}>
+        <Skeleton className="absolute inset-0 bg-white/5" />
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <Loader2 className="h-6 w-6 animate-spin text-primary/40 mb-2" />
+            <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Initializing Map</p>
+        </div>
       </div>
     );
   }

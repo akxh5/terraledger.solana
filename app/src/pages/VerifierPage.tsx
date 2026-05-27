@@ -10,6 +10,7 @@ import { useRoles } from "@/hooks/useRoles";
 import * as anchor from "@coral-xyz/anchor";
 import { ShieldCheck, Clock, ExternalLink, RefreshCw, Wallet, FileText, Users, CheckCircle2, Info, ChevronRight, Map as MapIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import logo from "@/assets/logo.png";
 import { Link } from "react-router-dom";
@@ -156,9 +157,10 @@ export default function VerifierPage() {
             </motion.div>
 
             {rolesLoading ? (
-              <div className="liquid-glass rounded-2xl p-12 text-center border border-white/10">
-                <RefreshCw className="animate-spin mx-auto text-primary mb-4 opacity-40" size={40} />
-                <p className="text-sm text-muted-foreground">Accessing on-chain registry...</p>
+              <div className="space-y-4">
+                {[1, 2, 3].map(i => (
+                  <Skeleton key={i} className="h-32 w-full bg-white/5 rounded-2xl" />
+                ))}
               </div>
             ) : pendingParcels.length === 0 ? (
               <motion.div {...fadeUp(0.05)} className="liquid-glass rounded-2xl p-12 text-center border border-white/10">

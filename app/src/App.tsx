@@ -12,6 +12,7 @@ import Dashboard from "./pages/Dashboard.tsx";
 import VerifierPage from "./pages/VerifierPage.tsx";
 import AuthorityPage from "./pages/AuthorityPage.tsx";
 import NotFound from "./pages/NotFound.tsx";
+import { DemoMode } from "@/components/DemoMode";
 
 const queryClient = new QueryClient();
 
@@ -23,7 +24,9 @@ const App = () => (
           <TooltipProvider>
             <Toaster />
             <Sonner />
+            <DemoMode />
             <BrowserRouter>
+...
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route 

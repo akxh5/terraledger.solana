@@ -42,7 +42,10 @@ const STATUS_COLORS = {
   Disputed: "text-orange-500 bg-orange-500/10 border-orange-500/20",
 };
 
+import { useDemoMode } from "@/components/DemoMode";
+
 export default function AuthorityPage() {
+  const isDemo = useDemoMode();
   const { publicKey, connected } = useWallet();
   const { authorityParcels, roles, isLoading: rolesLoading } = useRoles();
   const { refreshParcels } = useParcels();
@@ -157,19 +160,20 @@ export default function AuthorityPage() {
 
       <main className="max-w-7xl mx-auto px-6 py-8">
         {/* Demo Banner */}
-        <motion.div {...fadeUp(0)} className="mb-8 p-4 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-start gap-4">
-          <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center shrink-0">
-             <AlertTriangle className="text-purple-400" size={20} />
-          </div>
-          <div>
-            <h2 className="text-sm font-bold text-purple-400 uppercase tracking-widest mb-1">Demo Mode: Authority Access</h2>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              You are connected as a governance authority. In production, actions require multi-party approval via Squads multisig. 
-              The current demo uses a <span className="text-purple-400 font-bold">1-of-1 configuration</span> for atomic execution.
-            </p>
-          </div>
-        </motion.div>
-
+        {!isDemo && (
+          <motion.div {...fadeUp(0)} className="mb-8 p-4 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-start gap-4">
+            <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center shrink-0">
+               <AlertTriangle className="text-purple-400" size={20} />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-purple-400 uppercase tracking-widest mb-1">Demo Mode: Authority Access</h2>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                You are connected as a governance authority. In production, actions require multi-party approval via Squads multisig.
+                The current demo uses a <span className="text-purple-400 font-bold">1-of-1 configuration</span> for atomic execution.
+              </p>
+            </div>
+          </motion.div>
+        )}
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Parcel Overview Panel */}
           <div className="lg:col-span-2 space-y-8">

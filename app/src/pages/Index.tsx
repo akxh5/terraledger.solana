@@ -22,18 +22,26 @@ const Index = () => {
   const { roles, isLoading, isOwner, isVerifier, isAuthority } = useRoles();
   const navigate = useNavigate();
   const [showRoleSelection, setShowRoleSelection] = useState(false);
-  const [isEnteringApp, setIsEnteringApp] = useState(false);
+  const [hasClickedEnter, setHasClickedEnter] = useState(false);
+
+  // Reset state on disconnect
+  useEffect(() => {
+    if (!connected) {
+      setHasClickedEnter(false);
+      setShowRoleSelection(false);
+    }
+  }, [connected]);
 
   const handleOpenDashboard = useCallback(() => {
     if (!connected) {
       openModal();
       return;
     }
-    setIsEnteringApp(true);
+    setHasClickedEnter(true);
   }, [connected, openModal]);
 
   useEffect(() => {
-    if (connected && isEnteringApp && !isLoading) {
+    if (connected && hasClickedEnter && !isLoading) {
       if (roles.length > 1) {
         setShowRoleSelection(true);
       } else if (roles.length === 1) {
@@ -44,7 +52,7 @@ const Index = () => {
         navigate('/dashboard');
       }
     }
-  }, [connected, isEnteringApp, isLoading, roles, navigate]);
+  }, [connected, hasClickedEnter, isLoading, roles, navigate]);
 
   const roleCards = [
     {
@@ -82,13 +90,76 @@ const Index = () => {
     }
   ];
 
+  if (showRoleSelection) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-6 overflow-y-auto relative">
+        {/* Background effects to match landing page */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-primary/5 blur-[120px] animate-pulse-glow" />
+          <div className="absolute bottom-1/3 right-1/4 w-80 h-80 rounded-full bg-primary/8 blur-[100px] animate-pulse-glow" style={{ animationDelay: "1.5s" }} />
+        </div>
+
+        <div className="max-w-4xl w-full relative z-10">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">Select Your Portal</h2>
+            <p className="text-muted-foreground max-w-lg mx-auto">
+              Your wallet holds multiple roles in the TerraLedger ecosystem. 
+              Choose which portal you'd like to enter.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6">
+            {roleCards.filter(c => c.show).map((card, idx) => (
+              <motion.div
+                key={card.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.1 }}
+                whileHover={{ scale: 1.02, translateY: -5 }}
+                onClick={() => navigate(card.path)}
+                className={`cursor-pointer p-6 rounded-2xl border ${card.border} ${card.bg} flex flex-col items-center text-center transition-all hover:shadow-[0_0_40px_rgba(0,230,154,0.1)]`}
+              >
+                <div className={`w-14 h-14 rounded-xl ${card.bg} flex items-center justify-center mb-6`}>
+                  <card.icon className={card.color} size={28} />
+                </div>
+                <h3 className="text-xl font-bold mb-3">{card.title}</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed mb-8 flex-1">
+                  {card.description}
+                </p>
+                <Button 
+                  variant="outline" 
+                  className={`w-full gap-2 ${card.border} hover:${card.bg}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(card.path);
+                  }}
+                >
+                  Enter Portal <ArrowRight size={16} />
+                </Button>
+              </motion.div>
+            ))}
+          </div>
+          
+          <div className="mt-12 text-center">
+            <Button variant="ghost" onClick={() => {
+              setShowRoleSelection(false);
+              setHasClickedEnter(false);
+            }}>
+              Back to Landing Page
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <SmoothScroller>
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background relative">
         <Navbar />
         
         <AnimatePresence>
-          {connected && isEnteringApp && isLoading && (
+          {connected && hasClickedEnter && isLoading && (
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -98,65 +169,6 @@ const Index = () => {
               <Loader2 className="animate-spin text-primary mb-4" size={40} />
               <h2 className="text-xl font-bold mb-2">Checking your access...</h2>
               <p className="text-muted-foreground">Deriving roles from on-chain state</p>
-            </motion.div>
-          )}
-
-          {showRoleSelection && (
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-xl flex items-center justify-center p-6 overflow-y-auto"
-            >
-              <div className="max-w-4xl w-full">
-                <div className="text-center mb-12">
-                  <h2 className="text-3xl md:text-4xl font-bold mb-4">Select Your Portal</h2>
-                  <p className="text-muted-foreground max-w-lg mx-auto">
-                    Your wallet holds multiple roles in the TerraLedger ecosystem. 
-                    Choose which portal you'd like to enter.
-                  </p>
-                </div>
-
-                <div className="grid md:grid-cols-3 gap-6">
-                  {roleCards.filter(c => c.show).map((card, idx) => (
-                    <motion.div
-                      key={card.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: idx * 0.1 }}
-                      whileHover={{ scale: 1.02, translateY: -5 }}
-                      onClick={() => navigate(card.path)}
-                      className={`cursor-pointer p-6 rounded-2xl border ${card.border} ${card.bg} flex flex-col items-center text-center transition-all hover:shadow-[0_0_40px_rgba(0,230,154,0.1)]`}
-                    >
-                      <div className={`w-14 h-14 rounded-xl ${card.bg} flex items-center justify-center mb-6`}>
-                        <card.icon className={card.color} size={28} />
-                      </div>
-                      <h3 className="text-xl font-bold mb-3">{card.title}</h3>
-                      <p className="text-sm text-muted-foreground leading-relaxed mb-8 flex-1">
-                        {card.description}
-                      </p>
-                      <Button 
-                        variant="outline" 
-                        className={`w-full gap-2 ${card.border} hover:${card.bg}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(card.path);
-                        }}
-                      >
-                        Enter Portal <ArrowRight size={16} />
-                      </Button>
-                    </motion.div>
-                  ))}
-                </div>
-                
-                <div className="mt-12 text-center">
-                  <Button variant="ghost" onClick={() => {
-                    setShowRoleSelection(false);
-                    setIsEnteringApp(false);
-                  }}>
-                    View Landing Page
-                  </Button>
-                </div>
-              </div>
             </motion.div>
           )}
         </AnimatePresence>
