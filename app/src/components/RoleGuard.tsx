@@ -16,13 +16,14 @@ export function RoleGuard({ children, role }: RoleGuardProps) {
   const rolesData = useRoles();
   const { roles, isLoading } = rolesData;
 
+  const memoizedChildren = React.useMemo(() => children, [children]);
+
   // DEMO ONLY: Allow DevWallet to bypass all role checks
   const DEV_WALLET_PUBKEY = '8d4AWN8TmG76FUsEzJWmNPvM8PiwGckaDKKZVEnesEyp';
   if (publicKey?.toString() === DEV_WALLET_PUBKEY) {
-    return <>{children}</>;
+    return <>{memoizedChildren}</>;
   }
 
-  const memoizedChildren = React.useMemo(() => children, [children]);
 
   if (!connected) {
     return (
